@@ -11,7 +11,7 @@ if (len(sys.argv) > 1):
   if sys.argv[1]=='update':
     update=1
 
-ident=['Lupus','l1489_1','L1489_2','Richling','COdep','Reinout','Iras2','Lars','herschel_1','herschel_2','DMtau','LIME','TWHya','Ewine','Salter','Ruud','dustpol','Bisschop','Irs43-64', 'new', 'new','new','new']
+ident=['Lupus','l1489_1','L1489_2','Richling','COdep','Reinout','Iras2','Lars','herschel_1','herschel_2','DMtau','LIME','TWHya','Ewine','Salter','Ruud','dustpol','Bisschop','Irs43-64', 'new', 'new','new','new','new']
 
 def _monthtoyear(month):
   if ("jan" in month): return 0./12.
@@ -26,7 +26,8 @@ def _monthtoyear(month):
   if ("oct" in month): return 9./12.
   if ("nov" in month): return 10./12.
   if ("dec" in month): return 11./12.
-    
+  return 0.
+
 url1='http://adsabs.harvard.edu/cgi-bin/nph-ref_query?bibcode='
 #url1='http://esoads.eso.org/cgi-bin/nph-ref_query?bibcode='
 url2='&amp;refs=CITATIONS&amp;db_key=AST&data_type=BIBTEX'
@@ -53,7 +54,7 @@ if update:
             month=contentlines[i+1].split()[2].rstrip(',')
           else:
             month="jan"
-          
+
           time=int(contentlines[i].split()[2].rstrip(',')) + _monthtoyear(month)
           times.append(time)
       print data['citations'][-1]
@@ -91,7 +92,7 @@ plt.plot(sorted(times),cite)
 fig = plt.figure(2)
 ax=fig.add_subplot(111)
 ax.set_xlim(0,30)
-ax.set_ylim(0,120)
+ax.set_ylim(0,150)
 ax.set_xlabel('Papers')
 ax.set_ylabel('Citations')
 ax.minorticks_on()
@@ -123,16 +124,16 @@ for i in range(120):
     n+=j
   n=0
   freq=Counter(temp)
-  
+
   sorttemp=sorted(temp,reverse=True)
-  idx=0. 
+  idx=0.
   for k in range(len(temp)):
     if sorttemp[k]>=(k+1):
       idx=k+1
     else:
       break
-  
-  hindex[i]=idx  
+
+  hindex[i]=idx
 
 print hindex
 
@@ -159,8 +160,8 @@ plt.tick_params(axis='both', which='both', width=0.4)
 from datetime import date
 import math
 l=0
-ghist=np.zeros(9)
-norm=np.zeros(9)
+ghist=np.zeros(10)
+norm=np.zeros(10)
 for i in range(len(data['citations'])):
   arr=times[l:l+cites[i]]
   for k in range(len(arr)):
@@ -169,18 +170,17 @@ for i in range(len(data['citations'])):
   pubyear=int(data['paper'][i][0:4])
   years=int(date.today().year-pubyear)+1
   hist=np.histogram(times[l:l+cites[i]], bins=list(range(pubyear,int(date.today().year)+2)))
-  
+
   for j in range(len(hist[0])):
     ghist[j]=ghist[j]+hist[0][j]
     norm[j]=norm[j]+1
 
 
-  plt.plot(np.arange(len(hist[0])),hist[0], label=ident[i])
+  plt.plot(np.arange(len(hist[0])),hist[0])#, label=ident[i])
   l=l+cites[i]
 
-plt.legend(loc=1,prop={'size':10})
-plt.plot(np.arange(9),ghist/norm, lw=3, color='black')
+#plt.legend(loc=1,prop={'size':10}) 
+plt.plot(np.arange(10),ghist/norm, lw=3, color='black')
 
 
 plt.show()
-
