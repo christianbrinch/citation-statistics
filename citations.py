@@ -11,7 +11,9 @@ if (len(sys.argv) > 1):
   if sys.argv[1]=='update':
     update=1
 
-ident=['Lupus','l1489_1','L1489_2','Richling','COdep','Reinout','Iras2','Lars','herschel_1','herschel_2','DMtau','LIME','TWHya','Ewine','Salter','Ruud','dustpol','Bisschop','Irs43-64', 'new', 'new','new','new','new']
+ident=['Lupus','l1489_1','L1489_2','Richling','COdep','Reinout','Iras2','Lars',
+       'herschel_1','herschel_2','DMtau','LIME','TWHya','Ewine','Salter','Ruud',
+       'dustpol','Bisschop','Irs43-64', 'new', 'new','new','new','new']
 
 def _monthtoyear(month):
   if ("jan" in month): return 0./12.
@@ -179,7 +181,7 @@ for i in range(len(data['citations'])):
   plt.plot(np.arange(len(hist[0])),hist[0])#, label=ident[i])
   l=l+cites[i]
 
-#plt.legend(loc=1,prop={'size':10}) 
+#plt.legend(loc=1,prop={'size':10})
 plt.plot(np.arange(10),ghist/norm, lw=3, color='black')
 
 
