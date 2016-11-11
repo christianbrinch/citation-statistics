@@ -1,19 +1,72 @@
 #!/usr/bin/env python
+# encoding=utf8
+
 import sys
 from urllib2 import *
 import re
 import matplotlib.pyplot as plt
 import numpy as np
 import pickle
+from datetime import date
+reload(sys)
+sys.setdefaultencoding('utf8')
 
-update=0
-if (len(sys.argv) > 1):
-  if sys.argv[1]=='update':
-    update=1
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.collections import LineCollection
+from matplotlib.colors import ListedColormap, BoundaryNorm
 
-ident=['Lupus','l1489_1','L1489_2','Richling','COdep','Reinout','Iras2','Lars',
-       'herschel_1','herschel_2','DMtau','LIME','TWHya','Ewine','Salter','Ruud',
-       'dustpol','Bisschop','Irs43-64', 'new', 'new','new','new','new']
+
+# Data manipulation:
+
+def make_segments(x, y):
+    '''
+    Create list of line segments from x and y coordinates, in the correct format for LineCollection:
+    an array of the form   numlines x (points per line) x 2 (x and y) array
+    '''
+
+    points = np.array([x, y]).T.reshape(-1, 1, 2)
+    segments = np.concatenate([points[:-1], points[1:]], axis=1)
+
+    return segments
+
+
+# Interface to LineCollection:
+
+def colorline(x, y, z=None, cmap=plt.get_cmap('copper'), norm=plt.Normalize(0.0, 1.0), linewidth=3, alpha=1.0):
+    '''
+    Plot a colored line with coordinates x and y
+    Optionally specify colors in the array z
+    Optionally specify a colormap, a norm function and a line width
+    '''
+
+    # Default colors equally spaced on [0,1]:
+    if z is None:
+        z = np.linspace(0.0, 1.0, len(x))
+
+    # Special case if a single number:
+    if not hasattr(z, "__iter__"):  # to check for numerical input -- this is a hack
+        z = np.array([z])
+
+    z = np.asarray(z)
+
+    segments = make_segments(x, y)
+    lc = LineCollection(segments, array=z, cmap=cmap, norm=norm, linewidth=linewidth, alpha=alpha)
+
+    ax = plt.gca()
+    ax.add_collection(lc)
+
+    return lc
+
+
+def clear_frame(ax=None):
+    # Taken from a post by Tony S Yu
+    if ax is None:
+        ax = plt.gca()
+    ax.xaxis.set_visible(False)
+    ax.yaxis.set_visible(False)
+    for spine in ax.spines.itervalues():
+        spine.set_visible(False)
 
 def _monthtoyear(month):
   if ("jan" in month): return 0./12.
@@ -30,81 +83,158 @@ def _monthtoyear(month):
   if ("dec" in month): return 11./12.
   return 0.
 
-url1='http://adsabs.harvard.edu/cgi-bin/nph-ref_query?bibcode='
-#url1='http://esoads.eso.org/cgi-bin/nph-ref_query?bibcode='
-url2='&amp;refs=CITATIONS&amp;db_key=AST&data_type=BIBTEX'
+class aPaper(object):
+    def __init__(self, identifier, doi, title, nCitations, pubYear, citationsByMonth):
+        self.identifier = identifier
+        self.doi = doi
+        self.title = title
+        self.nCitations = nCitations
+        self.pubYear = pubYear
+        self.citationsByMonth = citationsByMonth
+
+
+
+papers = []
+update=0
+if (len(sys.argv) > 1):
+  if sys.argv[1]=='update':
+    update=1
+
+now = date.today().year+date.today().month/12.
+
+
+
+
+# Get paper list from ORCID
+webpage=urlopen("http://pub.orcid.org/v1.2/0000-0002-5074-7183/orcid-profile")
+content=webpage.read()
+webpage.close()
+contentlines=content.split('\n')
+for i in range(len(contentlines)):
+    if "<title>" in contentlines[i] and "The evolving velocity field around protostars" not in contentlines[i]:
+        title=(contentlines[i].split("<title>")[1].split("</title>")[0])[0:29].title()
+        papers.append(aPaper("","",title,0,0,[]))
+    if "<work-external-identifier-id>10" in contentlines[i]:
+        papers[-1].doi=contentlines[i].split("<work-external-identifier-id>")[1].split("</work-external-identifier-id>")[0]
+
+npapers=len(papers)
+
+
+
+
 
 if update:
-  data={'paper': [], 'citations': []}
-  f=open('paperlist.txt', 'r')
-  times=[]
-  with open('paperlist.txt') as papers:
-    for line in papers:
-      print line.rstrip()
-      webpage=urlopen(url1+line.rstrip()+url2)
-      content=webpage.read()
-      webpage.close()
-      contentlines=content.split('\n')
-      data['paper'].append(line.rstrip())
+    times=[]
+    for paper in papers:
+        print paper.doi
+        url1='http://esoads.eso.org/cgi-bin/basic_connect?qsearch='
+        url2='&version=1&data_type=BIBTEX'
+        try:
+            webpage=urlopen(url1+paper.doi.rstrip()+url2)
+            content=webpage.read()
+            webpage.close()
+            contentlines=content.split('\n')
+            for i in range(len(contentlines)):
+                if "@ARTICLE" in contentlines[i]:
+                    identifier=contentlines[i].split("@ARTICLE{")[1].split(",")[0]
+                    paper.identifier=identifier
+                if "year" in contentlines[i]:
+                    if "month" in contentlines[i+1]:
+                        month=contentlines[i+1].split()[2].rstrip(',')
+                    else:
+                        month="jan"
 
-      for i in range(len(contentlines)):
-        if "Retrieved" in contentlines[i]:
-          data['citations'].append(contentlines[i].split()[1])
+                    pubYear=int(contentlines[i].split()[2].rstrip(',')) + _monthtoyear(month)
+                    paper.pubYear = pubYear
+        except:
+            print "Wrong DOI identifier"
 
-        if "year" in contentlines[i]:
-          if "month" in contentlines[i+1]:
-            month=contentlines[i+1].split()[2].rstrip(',')
-          else:
-            month="jan"
+        url1='http://esoads.eso.org/cgi-bin/nph-ref_query?bibcode='
+        url2='&amp;refs=CITATIONS&amp;db_key=AST&data_type=BIBTEX'
+        try:
+            webpage=urlopen(url1+identifier.replace("&", "%26")+url2)
+            content=webpage.read()
+            webpage.close()
+            contentlines=content.split('\n')
 
-          time=int(contentlines[i].split()[2].rstrip(',')) + _monthtoyear(month)
-          times.append(time)
-      print data['citations'][-1]
-    pickle.dump(data, open("datadump.p","wb") )
-    pickle.dump(times, open("timedump.p","wb") )
+            for i in range(len(contentlines)):
+                if "Retrieved" in contentlines[i]:
+                    paper.nCitations=int(contentlines[i].split()[1])
+
+                if "year" in contentlines[i]:
+                    if "month" in contentlines[i+1]:
+                        month=contentlines[i+1].split()[2].rstrip(',')
+                    else:
+                        month="jan"
+
+                    time=int(contentlines[i].split()[2].rstrip(',')) + _monthtoyear(month)
+                    paper.citationsByMonth.append(time)
+
+            print "number of citation", paper.nCitations
+        except:
+            print "No citations"
+            paper.nCitations = 0
+
+    pickle.dump(papers, open("datadump.p","wb") )
 
 else:
-  data=pickle.load( open("datadump.p","rb") )
-  times=pickle.load( open("timedump.p","rb") )
+    papers=pickle.load( open("datadump.p","rb") )
 
 
-total_citations=0
-for i in data['citations']:
-  total_citations+=int(i)
 
-
+total_citations = sum([paper.nCitations for paper in papers])
 print "Total number of citations: ", total_citations
 
+
+
+
+
+# Citations in time
 fig = plt.figure(1)
 ax=fig.add_subplot(111)
-ax.set_xlim(2006,2017)
+ax.set_xlim(2005,now+2)
 from matplotlib.ticker import FormatStrFormatter
 ax.xaxis.set_major_formatter(FormatStrFormatter('%d'))
 ax.set_ylim(0,total_citations+0.2*total_citations)
 ax.set_xlabel('Year')
 ax.set_ylabel('Number of citations')
 ax.minorticks_on()
-#ax.set_yscale('log')
 plt.tick_params(axis='both', which='both', width=0.4)
-cite=np.arange(len(times))
-plt.plot(sorted(times),cite)
-#x=np.arange(100)/10. + 2007
-#plt.plot(x, np.exp(x-2007))
+#ax.set_yscale('log')
+cite=np.arange(total_citations)
+citetimes = [time for paper in papers for time in paper.citationsByMonth]
+plt.plot(sorted(citetimes),cite)
 
+
+
+
+
+
+
+# Citations per paper
 fig = plt.figure(2)
 ax=fig.add_subplot(111)
-ax.set_xlim(0,30)
+ax.set_xlim(0,npapers+2)
 ax.set_ylim(0,150)
-ax.set_xlabel('Papers')
 ax.set_ylabel('Citations')
 ax.minorticks_on()
-plt.tick_params(axis='both', which='both', width=0.4)
-cites=map(int,data['citations'])
-plt.bar(np.arange(len(data['citations']))+0.5, cites)
+plt.xticks(np.arange(0, npapers+2, 1.0)+0.5)
+plt.tick_params(axis='x', which='both',labelsize=8)
+ax.set_xticklabels([paper.title for paper in papers],rotation=45, rotation_mode="anchor", ha="right")
+cites=map(int,[paper.nCitations for paper in papers])
+plt.bar(np.arange(npapers)+0.25, cites)
 
+
+
+
+
+
+
+
+# h-index in time
 fig = plt.figure(3)
 ax=fig.add_subplot(111)
-ax.set_xlim(2006,2017)
+ax.set_xlim(2005,2018)
 ax.xaxis.set_major_formatter(FormatStrFormatter('%d'))
 ax.set_ylim(0,20)
 ax.set_xlabel('Year')
@@ -112,77 +242,70 @@ ax.set_ylabel('h-index')
 ax.minorticks_on()
 plt.tick_params(axis='both', which='both', width=0.4)
 
-from collections import Counter
-import operator
-temp=np.zeros(len(data['citations']))
-hindex=np.zeros(120)
-n=0
-for i in range(120):
-  temp[:]=0.
-  for k in range(len(data['citations'])):
-    for j in range(cites[k]):
-      if times[n+j] <= 2007.+i/12.:
-        temp[k]+=1
-    n+=j
-  n=0
-  freq=Counter(temp)
+nMonth = int((round(now+0.5)-2007)*12)
+hindex=[]
+for i in range(nMonth):
+    year = 2007 + i%12 + (i - (i%12 * 12))/12.
+    currentCitations = []
+    for paper in papers:
+        currentCitations.append(0)
+        for citation in paper.citationsByMonth:
+            if citation < year:
+                currentCitations[-1] += 1
 
-  sorttemp=sorted(temp,reverse=True)
-  idx=0.
-  for k in range(len(temp)):
-    if sorttemp[k]>=(k+1):
-      idx=k+1
-    else:
-      break
+    numberOfCitation=sorted(currentCitations,reverse=True)
+    hindex.append(0)
+    for i in range(npapers):
+        if (i+1)<=numberOfCitation[i]:
+            hindex[-1] += 1
 
-  hindex[i]=idx
+plt.plot(2007+np.arange(len(hindex))/12., hindex)
+x=np.arange(len(hindex))/12. + 2007
+plt.plot(x, x-2007)
+plt.plot(x, 2*(x-2007))
 
-print hindex
+print "h-index:", hindex[-1]
+print "h-index slope:", hindex[-1]/(now-2007)
 
-plt.plot(2007+np.arange(120)/12., hindex)
-x=np.arange(120)/10. + 2007
-plt.plot(x, x-2006)
-plt.plot(x, 2*(x-2006)-1)
 
-plt.plot(x, 16./11.*(x-2006)-1)
-print "h-index slope:", 16./11.
+
+
+
 
 
 
 fig=plt.figure(4)
 ax=fig.add_subplot(111)
-ax.set_xlim(0,8)
+ax.set_xlim(-1,15)
 ax.xaxis.set_major_formatter(FormatStrFormatter('%d'))
-ax.set_ylim(0,40)
+ax.set_ylim(0,1)
 ax.set_xlabel('Years after publication')
-ax.set_ylabel('citations per year')
+ax.set_ylabel('Citations per year')
 ax.minorticks_on()
 plt.tick_params(axis='both', which='both', width=0.4)
+from scipy.optimize import curve_fit
+from scipy.misc import factorial
 
-from datetime import date
-import math
-l=0
-ghist=np.zeros(10)
-norm=np.zeros(10)
-for i in range(len(data['citations'])):
-  arr=times[l:l+cites[i]]
-  for k in range(len(arr)):
-    arr[k]=math.floor(arr[k])
-
-  pubyear=int(data['paper'][i][0:4])
-  years=int(date.today().year-pubyear)+1
-  hist=np.histogram(times[l:l+cites[i]], bins=list(range(pubyear,int(date.today().year)+2)))
-
-  for j in range(len(hist[0])):
-    ghist[j]=ghist[j]+hist[0][j]
-    norm[j]=norm[j]+1
+def poisson(k, lamb):
+    return (lamb**k/factorial(k)) * np.exp(-lamb)
 
 
-  plt.plot(np.arange(len(hist[0])),hist[0])#, label=ident[i])
-  l=l+cites[i]
+for paper in papers:
+  if paper.nCitations > 1:
+      data=[ (i+1) - paper.pubYear for i in paper.citationsByMonth]
+      try:
+          entries, bin_edges, patches = plt.hist(data, bins=list(range(0,int(now-int(paper.pubYear))+2)), normed=True, alpha=0.0)
+          bin_middles = 0.5*(bin_edges[1:] + bin_edges[:-1])
+          parameters, cov_matrix = curve_fit(poisson, bin_middles, entries)
+          x_plot = np.linspace(0,20,1000)
+          plt.plot(x_plot, poisson(x_plot, *parameters), lw=2, label=paper.title)
+          #color=(now-paper.pubYear)/9.
+          #colorline(x_plot, poisson(x_plot, *parameters), color, cmap="coolwarm")
+      except:
+          print paper.title+" doesn't work"
 
-#plt.legend(loc=1,prop={'size':10})
-plt.plot(np.arange(10),ghist/norm, lw=3, color='black')
+
+plt.legend(loc=1,prop={'size':8})
 
 
 plt.show()
