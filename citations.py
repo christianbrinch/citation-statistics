@@ -35,8 +35,6 @@ from scipy.misc import factorial
 reload(sys)
 sys.setdefaultencoding('utf8')
 
-def poisson(k, lamb):
-    return (lamb**k/factorial(k)) * np.exp(-lamb)
 
 def _monthtoyear(month):
   if ("jan" in month): return 0./12.
@@ -154,6 +152,7 @@ else:
     papers=pickle.load( open("datadump.p","rb") )
 
 
+papersSorted = sorted(papers, key=lambda x: x.pubYear, reverse=True)
 
 total_citations = sum([paper.nCitations for paper in papers])
 print "Total number of citations: ", total_citations
@@ -193,9 +192,9 @@ ax.set_ylabel('Citations')
 ax.minorticks_on()
 plt.xticks(np.arange(0, npapers+2, 1.0)+0.5)
 plt.tick_params(axis='x', which='both',labelsize=8)
-ax.set_xticklabels([paper.title for paper in papers],rotation=45, \
+ax.set_xticklabels([paper.title for paper in papersSorted],rotation=45, \
                     rotation_mode="anchor", ha="right")
-cites = map(int,[paper.nCitations for paper in papers])
+cites = map(int,[paper.nCitations for paper in papersSorted])
 plt.bar(np.arange(npapers)+0.25, cites)
 
 
@@ -250,28 +249,32 @@ print "h-index slope:", hindex[-1]/(now-2007)
 
 fig=plt.figure(4)
 ax=fig.add_subplot(111)
-ax.set_xlim(-1,15)
+ax.set_xlim(0,10)
 ax.xaxis.set_major_formatter(FormatStrFormatter('%d'))
-ax.set_ylim(0,1)
-ax.set_xlabel('Years after publication')
-ax.set_ylabel('Citations per year')
+ax.set_ylim(0,10)
+ax.set_xlabel('Age of publication')
+ax.set_ylabel('Year of most citations')
 ax.minorticks_on()
 plt.tick_params(axis='both', which='both', width=0.4)
-    
-for paper in papers:
-  if paper.nCitations > 1:
-      data=[ (i+1) - paper.pubYear for i in paper.citationsByMonth]
-      try:
-          entries, bin_edges, patches = plt.hist(data, \
-                bins=list(range(0,int(now-int(paper.pubYear))+2)), \
-                normed=True, alpha=0.0)
-          bin_middles = 0.5*(bin_edges[1:] + bin_edges[:-1])
-          parameters, cov_matrix = curve_fit(poisson, bin_middles, entries)
-          x_plot = np.linspace(0,20,1000)
-          plt.plot(x_plot, poisson(x_plot, *parameters),lw=2, label=paper.title)
-      except:
-          print paper.title+" doesn't work"
 
+peak=[]
+age=[]
+
+for paper in papers:
+    if paper.nCitations > 1 and "1333" in paper.title:
+        data=[ int(i) - int(paper.pubYear) for i in paper.citationsByMonth]
+      #try:
+        entries, bin_edges, patches = plt.hist(data, \
+                bins=list(range(0,int(date.today().year-int(paper.pubYear))+2)), \
+                normed=True, alpha=0.0)
+        bin_middles = 0.5*(bin_edges[1:] + bin_edges[:-1])
+        peak.append(np.argmax(entries))
+        age.append((date.today().year-(paper.pubYear))+1)
+      #except:
+    #      print paper.title+" doesn't work"
+
+plt.plot(age,peak, '+', color='black')
+plt.plot([0,10],[0,10], color='black')
 
 plt.legend(loc=1,prop={'size':8})
 plt.show()
