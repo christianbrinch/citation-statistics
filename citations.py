@@ -52,15 +52,16 @@ def _monthtoyear(month):
   return 0.
 
 class aPaper(object):
-    def __init__(self, identifier, doi, title, nCitations, pubYear,
-                 citationsByMonth):
+    def __init__(self, identifier, doi, title, nCitations, selfCitations,
+                 pubYear, citationsByMonth,pi):
         self.identifier = identifier
         self.doi = doi
         self.title = title
         self.nCitations = nCitations
+        self.nSelfCitations = selfCitations
         self.pubYear = pubYear
         self.citationsByMonth = citationsByMonth
-
+        self.pi = pi
 
 
 papers = []
@@ -82,10 +83,12 @@ lines=content.split('\n')
 for i in range(len(lines)):
     if "<title>" in lines[i] and "The evolving velocity field" not in lines[i]:
         title=(lines[i].split("<title>")[1].split("</title>")[0])[0:29].title()
-        papers.append(aPaper("","",title,0,0,[]))
+        papers.append(aPaper("","",title,0,0,0,[],'blue'))
     if "<work-external-identifier-id>10" in lines[i]:
         papers[-1].doi=lines[i].split("<work-external-identifier-id>")[1].split(\
             "</work-external-identifier-id>")[0]
+    if "<work-contributors>" in lines[i] and "Brinch" in lines[i+2]:
+        papers[-1].pi = 'red'
 
 npapers=len(papers)
 
@@ -99,6 +102,7 @@ if update:
         print paper.doi
         url1='http://esoads.eso.org/cgi-bin/basic_connect?qsearch='
         url2='&version=1&data_type=BIBTEX'
+        authors=[]
         try:
             webpage=urlopen(url1 + paper.doi.rstrip() + url2)
             content=webpage.read()
@@ -117,6 +121,10 @@ if update:
                     pubYear = int(lines[i].split()[2].rstrip(',')) \
                               + _monthtoyear(month)
                     paper.pubYear = pubYear
+                if "author" in lines[i]:
+                    authors = lines[i].lstrip("author = ").rstrip("}")[1:].split("and")
+                    authors = [author.lstrip().rstrip() for author in authors]
+
         except:
             print "Wrong DOI identifier"
 
@@ -131,6 +139,11 @@ if update:
             for i in range(len(lines)):
                 if "Retrieved" in lines[i]:
                     paper.nCitations = int(lines[i].split()[1])
+                if "author" in lines[i]:
+                    names = lines[i].lstrip("author = ").rstrip("}")[1:].split("and")
+                    names = [name.lstrip().rstrip() for name in names]
+                    if names[0] in authors:
+                        paper.nSelfCitations += 1
                 if "year" in lines[i]:
                     if "month" in lines[i+1]:
                         month = lines[i+1].split()[2].rstrip(',')
@@ -153,9 +166,12 @@ else:
 
 
 papersSorted = sorted(papers, key=lambda x: x.pubYear, reverse=True)
+papersSorted = sorted(papers, key=lambda x: x.nCitations, reverse=True)
 
 total_citations = sum([paper.nCitations for paper in papers])
+total_selfcite  = sum([paper.nSelfCitations for paper in papers])
 print "Total number of citations: ", total_citations
+print "Number of citations without self-citations", total_citations-total_selfcite
 
 
 
@@ -186,17 +202,18 @@ plt.plot(sorted(citetimes),cite)
 # Citations per paper
 fig = plt.figure(2)
 ax=fig.add_subplot(111)
-ax.set_xlim(0,npapers+2)
+ax.set_xlim(0,2*npapers+2)
 ax.set_ylim(0,150)
 ax.set_ylabel('Citations')
 ax.minorticks_on()
-plt.xticks(np.arange(0, npapers+2, 1.0)+0.5)
+plt.xticks(np.arange(0, 2*npapers+2, 2.0)+0.5)
 plt.tick_params(axis='x', which='both',labelsize=8)
 ax.set_xticklabels([paper.title for paper in papersSorted],rotation=45, \
                     rotation_mode="anchor", ha="right")
 cites = map(int,[paper.nCitations for paper in papersSorted])
-plt.bar(np.arange(npapers)+0.25, cites)
-
+plt.bar(2*np.arange(npapers)+0.25, cites, color=[ i.pi for i in papersSorted ])
+cites = map(int,[paper.nCitations-paper.nSelfCitations for paper in papersSorted])
+plt.bar(2*np.arange(npapers)+0.9, cites, color=[ i.pi for i in papersSorted ], alpha=0.5)
 
 
 
@@ -249,7 +266,7 @@ print "h-index slope:", hindex[-1]/(now-2007)
 
 fig=plt.figure(4)
 ax=fig.add_subplot(111)
-ax.set_xlim(0,10)
+ax.set_xlim(0,15)
 ax.xaxis.set_major_formatter(FormatStrFormatter('%d'))
 ax.set_ylim(0,10)
 ax.set_xlabel('Age of publication')
@@ -259,22 +276,21 @@ plt.tick_params(axis='both', which='both', width=0.4)
 
 peak=[]
 age=[]
+colors=[]
 
 for paper in papers:
-    if paper.nCitations > 1 and "1333" in paper.title:
+    if paper.nCitations > 1: # and ("Searching For" in paper.title or "Structure And" in paper.title):
         data=[ int(i) - int(paper.pubYear) for i in paper.citationsByMonth]
-      #try:
         entries, bin_edges, patches = plt.hist(data, \
                 bins=list(range(0,int(date.today().year-int(paper.pubYear))+2)), \
                 normed=True, alpha=0.0)
         bin_middles = 0.5*(bin_edges[1:] + bin_edges[:-1])
-        peak.append(np.argmax(entries))
-        age.append((date.today().year-(paper.pubYear))+1)
-      #except:
-    #      print paper.title+" doesn't work"
 
-plt.plot(age,peak, '+', color='black')
+        colors.append(paper.pi)
+
+        plt.plot([now-paper.pubYear],[np.argmax(entries)], 'o', color=paper.pi)
+
 plt.plot([0,10],[0,10], color='black')
 
-plt.legend(loc=1,prop={'size':8})
+#plt.legend(loc=1,prop={'size':8})
 plt.show()
