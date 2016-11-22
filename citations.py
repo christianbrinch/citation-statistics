@@ -196,33 +196,8 @@ plt.plot(sorted(citetimes),cite)
 
 
 
-
-
-
-# Citations per paper
-fig = plt.figure(2)
-ax=fig.add_subplot(111)
-ax.set_xlim(0,2*npapers+2)
-ax.set_ylim(0,150)
-ax.set_ylabel('Citations')
-ax.minorticks_on()
-plt.xticks(np.arange(0, 2*npapers+2, 2.0)+0.5)
-plt.tick_params(axis='x', which='both',labelsize=8)
-ax.set_xticklabels([paper.title for paper in papersSorted],rotation=45, \
-                    rotation_mode="anchor", ha="right")
-cites = map(int,[paper.nCitations for paper in papersSorted])
-plt.bar(2*np.arange(npapers)+0.25, cites, color=[ i.pi for i in papersSorted ])
-cites = map(int,[paper.nCitations-paper.nSelfCitations for paper in papersSorted])
-plt.bar(2*np.arange(npapers)+0.9, cites, color=[ i.pi for i in papersSorted ], alpha=0.5)
-
-
-
-
-
-
-
 # h-index in time
-fig = plt.figure(3)
+fig = plt.figure(2)
 ax=fig.add_subplot(111)
 ax.set_xlim(2005,2018)
 ax.xaxis.set_major_formatter(FormatStrFormatter('%d'))
@@ -259,6 +234,26 @@ print "h-index slope:", hindex[-1]/(now-2007)
 
 
 
+
+
+
+
+# Citations per paper
+fig = plt.figure(3)
+ax=fig.add_subplot(111)
+ax.set_xlim(0,2*npapers+2)
+ax.set_ylim(0,150)
+ax.set_ylabel('Citations')
+ax.minorticks_on()
+plt.xticks(np.arange(0, 2*npapers+2, 2.0)+0.5)
+plt.tick_params(axis='x', which='both',labelsize=8)
+ax.set_xticklabels([paper.title for paper in papersSorted],rotation=45, \
+                    rotation_mode="anchor", ha="right")
+cites = map(int,[paper.nCitations for paper in papersSorted])
+plt.bar(2*np.arange(npapers)+0.25, cites, color=[ i.pi for i in papersSorted ])
+cites = map(int,[paper.nCitations-paper.nSelfCitations for paper in papersSorted])
+plt.bar(2*np.arange(npapers)+0.9, cites, color=[ i.pi for i in papersSorted ], alpha=0.5)
+plt.plot([0,2*npapers+0.25],[hindex[-1],hindex[-1]], '--', color='black')
 
 
 
