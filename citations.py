@@ -100,7 +100,7 @@ if update:
     times=[]
     for paper in papers:
         print paper.doi
-        url1='http://esoads.eso.org/cgi-bin/basic_connect?qsearch='
+        url1='http://adswww.harvard.edu/cgi-bin/basic_connect?qsearch='
         url2='&version=1&data_type=BIBTEX'
         authors=[]
         try:
@@ -128,7 +128,7 @@ if update:
         except:
             print "Wrong DOI identifier"
 
-        url1='http://esoads.eso.org/cgi-bin/nph-ref_query?bibcode='
+        url1='http://adswww.harvard.edu/cgi-bin/nph-ref_query?bibcode='
         url2='&amp;refs=CITATIONS&amp;db_key=AST&data_type=BIBTEX'
         try:
             webpage=urlopen(url1 + identifier.replace("&", "%26") + url2)
@@ -209,20 +209,29 @@ plt.tick_params(axis='both', which='both', width=0.4)
 
 nMonth = int((round(now+0.5)-2007)*12)
 hindex = []
+h5index = []
 for i in range(nMonth):
     year = 2007 + i%12 + (i - (i%12 * 12))/12.
     currentCitations = []
+    currentShortCitations = []
     for paper in papers:
         currentCitations.append(0)
+        currentShortCitations.append(0)
         for citation in paper.citationsByMonth:
             if citation < year:
                 currentCitations[-1] += 1
+            if citation < year and citation > (year-5):
+                currentShortCitations[-1] += 1
 
     numberOfCitation=sorted(currentCitations,reverse=True)
+    numberOfShortCitation=sorted(currentShortCitations,reverse=True)
     hindex.append(0)
+    h5index.append(0)
     for i in range(npapers):
         if (i+1) <= numberOfCitation[i]:
             hindex[-1] += 1
+        if (i+1) <= numberOfShortCitation[i]:
+            h5index[-1] += 1
 
 plt.plot(2007+np.arange(len(hindex))/12., hindex)
 x=np.arange(len(hindex))/12. + 2007
@@ -231,6 +240,13 @@ plt.plot(x, 2*(x-2007))
 
 print "h-index:", hindex[-1]
 print "h-index slope:", hindex[-1]/(now-2007)
+
+plt.plot(2007+np.arange(len(h5index))/12., h5index)
+x=np.arange(len(h5index))/12. + 2007
+plt.plot(x, x-2007)
+plt.plot(x, 2*(x-2007))
+
+print "h5-index:", h5index[-1]
 
 
 
