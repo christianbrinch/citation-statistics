@@ -32,24 +32,32 @@ import pickle
 from datetime import date
 from scipy.optimize import curve_fit
 from scipy.misc import factorial
+from matplotlib.ticker import FormatStrFormatter
 reload(sys)
 sys.setdefaultencoding('utf8')
 
 
 def _monthtoyear(month):
-  if ("jan" in month): return 0./12.
-  if ("feb" in month): return 1./12.
-  if ("mar" in month): return 2./12.
-  if ("apr" in month): return 3./12.
-  if ("may" in month): return 4./12.
-  if ("jun" in month): return 5./12.
-  if ("jul" in month): return 6./12.
-  if ("aug" in month): return 7./12.
-  if ("sep" in month): return 8./12.
-  if ("oct" in month): return 9./12.
-  if ("nov" in month): return 10./12.
-  if ("dec" in month): return 11./12.
-  return 0.
+    if ("jan" in month): return 0./12.
+    if ("feb" in month): return 1./12.
+    if ("mar" in month): return 2./12.
+    if ("apr" in month): return 3./12.
+    if ("may" in month): return 4./12.
+    if ("jun" in month): return 5./12.
+    if ("jul" in month): return 6./12.
+    if ("aug" in month): return 7./12.
+    if ("sep" in month): return 8./12.
+    if ("oct" in month): return 9./12.
+    if ("nov" in month): return 10./12.
+    if ("dec" in month): return 11./12.
+    return 0.
+
+
+def moving_average(a, n=3):
+    ret = np.cumsum(a, dtype=float)
+    ret[n:] = ret[n:] - ret[:-n]
+    return ret[n - 1:] / n
+
 
 class aPaper(object):
     def __init__(self, identifier, doi, title, nCitations, selfCitations,
@@ -67,8 +75,8 @@ class aPaper(object):
 papers = []
 update = False
 if (len(sys.argv) > 1):
-  if sys.argv[1] == 'update':
-    update = True
+    if sys.argv[1] == 'update':
+        update = True
 
 now = date.today().year+date.today().month/12.
 
@@ -85,8 +93,8 @@ for i in range(len(lines)):
         title=(lines[i].split("<title>")[1].split("</title>")[0])[0:29].title()
         papers.append(aPaper("","",title,0,0,0,[],'blue'))
     if "<work-external-identifier-id>10" in lines[i]:
-        papers[-1].doi=lines[i].split("<work-external-identifier-id>")[1].split(\
-            "</work-external-identifier-id>")[0]
+        papers[-1].doi=lines[i].split("<work-external-identifier-id>")[1].split\
+            ("</work-external-identifier-id>")[0]
     if "<work-contributors>" in lines[i] and "Brinch" in lines[i+2]:
         papers[-1].pi = 'red'
 
@@ -180,18 +188,16 @@ print "Number of citations without self-citations", total_citations-total_selfci
 # Citations in time
 fig = plt.figure(1)
 ax=fig.add_subplot(111)
-ax.set_xlim(2005,now+2)
-from matplotlib.ticker import FormatStrFormatter
+ax.set_xlim(2006,now+2)
 ax.xaxis.set_major_formatter(FormatStrFormatter('%d'))
 ax.set_ylim(0,total_citations+0.2*total_citations)
 ax.set_xlabel('Year')
 ax.set_ylabel('Number of citations')
 ax.minorticks_on()
-plt.tick_params(axis='both', which='both', width=0.4)
-#ax.set_yscale('log')
 cite = np.arange(total_citations)
 citetimes = [time for paper in papers for time in paper.citationsByMonth]
-plt.plot(sorted(citetimes),cite)
+ax.plot(sorted(citetimes),cite, linewidth=1.5)
+
 
 
 
@@ -199,15 +205,15 @@ plt.plot(sorted(citetimes),cite)
 # h-index in time
 fig = plt.figure(2)
 ax=fig.add_subplot(111)
-ax.set_xlim(2005,2018)
+ax.set_xlim(2006,now+2)
 ax.xaxis.set_major_formatter(FormatStrFormatter('%d'))
 ax.set_ylim(0,20)
 ax.set_xlabel('Year')
 ax.set_ylabel('h-index')
 ax.minorticks_on()
-plt.tick_params(axis='both', which='both', width=0.4)
 
-nMonth = int((round(now+0.5)-2007)*12)
+
+nMonth = int((now-2007.0)*12)
 hindex = []
 h5index = []
 for i in range(nMonth):
@@ -233,20 +239,18 @@ for i in range(nMonth):
         if (i+1) <= numberOfShortCitation[i]:
             h5index[-1] += 1
 
-plt.plot(2007+np.arange(len(hindex))/12., hindex)
+ax.plot(2007+np.arange(len(hindex))/12., hindex, color='blue', lw=1.5)
 x=np.arange(len(hindex))/12. + 2007
-plt.plot(x, x-2007)
-plt.plot(x, 2*(x-2007))
+ax.plot(x, x-2007, color='black', lw=1.5)
+ax.plot(x, 2*(x-2007), color='black', lw=1.5)
+ax.plot(2007+np.arange(len(h5index))/12., h5index, color='red', lw=1.5)
 
 print "h-index:", hindex[-1]
 print "h-index slope:", hindex[-1]/(now-2007)
-
-plt.plot(2007+np.arange(len(h5index))/12., h5index)
-x=np.arange(len(h5index))/12. + 2007
-plt.plot(x, x-2007)
-plt.plot(x, 2*(x-2007))
-
 print "h5-index:", h5index[-1]
+
+
+
 
 
 
@@ -258,30 +262,31 @@ print "h5-index:", h5index[-1]
 fig = plt.figure(3)
 ax=fig.add_subplot(111)
 ax.set_xlim(0,2*npapers+2)
-ax.set_ylim(0,150)
 ax.set_ylabel('Citations')
 ax.minorticks_on()
 plt.xticks(np.arange(0, 2*npapers+2, 2.0)+0.5)
-plt.tick_params(axis='x', which='both',labelsize=8)
+ax.tick_params(axis='x', which='both',labelsize=8)
 ax.set_xticklabels([paper.title for paper in papersSorted],rotation=45, \
                     rotation_mode="anchor", ha="right")
 cites = map(int,[paper.nCitations for paper in papersSorted])
-plt.bar(2*np.arange(npapers)+0.25, cites, color=[ i.pi for i in papersSorted ])
+ax.bar(2*np.arange(npapers)+0.25, cites, color=[ i.pi for i in papersSorted ])
 cites = map(int,[paper.nCitations-paper.nSelfCitations for paper in papersSorted])
-plt.bar(2*np.arange(npapers)+0.9, cites, color=[ i.pi for i in papersSorted ], alpha=0.5)
-plt.plot([0,2*npapers+0.25],[hindex[-1],hindex[-1]], '--', color='black')
+ax.bar(2*np.arange(npapers)+0.9, cites, color=[ i.pi for i in papersSorted ], alpha=0.5)
+ax.plot([0,2*npapers+0.25],[hindex[-1],hindex[-1]], '--', color='black')
+ax.text(2*npapers-5,hindex[-1]+2, 'h-index')
 
 
 
 
 
+
+# Citations per paper in time
 fig=plt.figure(4)
 ax=fig.add_subplot(111)
-ax.set_xlim(0,15)
 ax.xaxis.set_major_formatter(FormatStrFormatter('%d'))
-ax.set_ylim(0,10)
-ax.set_xlabel('Age of publication')
-ax.set_ylabel('Year of most citations')
+ax.set_xlim(-1,10)
+ax.set_xlabel('Years after publication')
+ax.set_ylabel('Citations')
 ax.minorticks_on()
 plt.tick_params(axis='both', which='both', width=0.4)
 
@@ -290,18 +295,14 @@ age=[]
 colors=[]
 
 for paper in papers:
-    if paper.nCitations > 1: # and ("Searching For" in paper.title or "Structure And" in paper.title):
-        data=[ int(i) - int(paper.pubYear) for i in paper.citationsByMonth]
-        entries, bin_edges, patches = plt.hist(data, \
-                bins=list(range(0,int(date.today().year-int(paper.pubYear))+2)), \
-                normed=True, alpha=0.0)
-        bin_middles = 0.5*(bin_edges[1:] + bin_edges[:-1])
+    cite = np.arange(paper.nCitations)
+    citetimes = [time-paper.pubYear for time in paper.citationsByMonth]
+    x=sorted(citetimes)
 
-        colors.append(paper.pi)
 
-        plt.plot([now-paper.pubYear],[np.argmax(entries)], 'o', color=paper.pi)
+    if len(x) > 2:
+        plt.plot(moving_average(x),cite[1:-1], color=paper.pi, lw=1.5, alpha=0.8)
 
-plt.plot([0,10],[0,10], color='black')
 
-#plt.legend(loc=1,prop={'size':8})
+
 plt.show()
