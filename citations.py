@@ -183,10 +183,10 @@ print "Number of citations without self-citations", total_citations-total_selfci
 
 
 
-
+fig_nr=1
 
 # Citations in time
-fig = plt.figure(1)
+fig = plt.figure(fig_nr)
 ax=fig.add_subplot(111)
 ax.set_xlim(2006,now+2)
 ax.xaxis.set_major_formatter(FormatStrFormatter('%d'))
@@ -196,14 +196,44 @@ ax.set_ylabel('Number of citations')
 ax.minorticks_on()
 cite = np.arange(total_citations)
 citetimes = [time for paper in papers for time in paper.citationsByMonth]
-ax.plot(sorted(citetimes),cite, linewidth=1.5)
+ax.plot(sorted(citetimes),cite, lw=1.5)
 
+
+
+# Citations per month
+fig_nr += 1
+fig = plt.figure(fig_nr)
+ax=fig.add_subplot(111)
+ax.set_xlim(2006,now+2)
+ax.xaxis.set_major_formatter(FormatStrFormatter('%d'))
+#ax.set_ylim(0,total_citations+0.2*total_citations)
+ax.set_xlabel('Year')
+ax.set_ylabel('Citation speed per month')
+ax.minorticks_on()
+x=np.arange(2006,now+2./12,1./12)
+y=np.zeros(len(x))
+tmp=np.array(sorted(citetimes))
+j=0
+i=0
+while j<len(y)-1:
+    if tmp[i] <= x[j]:
+        y[j]+=1
+        i+=1
+    else:
+        j+=1
+        y[j]=y[j-1]
+
+dy = np.zeros(x.shape,np.float)
+dy[0:-1] = np.diff(y)/np.diff(x)
+dy[-1] = (y[-1] - y[-2])/(x[-1] - x[-2])
+ax.plot(x[1:-1],moving_average(dy/12.), color='blue', lw=1.5)
 
 
 
 
 # h-index in time
-fig = plt.figure(2)
+fig_nr += 1
+fig = plt.figure(fig_nr)
 ax=fig.add_subplot(111)
 ax.set_xlim(2006,now+2)
 ax.xaxis.set_major_formatter(FormatStrFormatter('%d'))
@@ -259,7 +289,8 @@ print "h5-index:", h5index[-1]
 
 
 # Citations per paper
-fig = plt.figure(3)
+fig_nr += 1
+fig = plt.figure(fig_nr)
 ax=fig.add_subplot(111)
 ax.set_xlim(0,2*npapers+2)
 ax.set_ylabel('Citations')
@@ -281,7 +312,8 @@ ax.text(2*npapers-5,hindex[-1]+2, 'h-index')
 
 
 # Citations per paper in time
-fig=plt.figure(4)
+fig_nr += 1
+fig=plt.figure(fig_nr)
 ax=fig.add_subplot(111)
 ax.xaxis.set_major_formatter(FormatStrFormatter('%d'))
 ax.set_xlim(-1,10)
