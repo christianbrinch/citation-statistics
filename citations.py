@@ -90,7 +90,7 @@ webpage.close()
 lines=content.split('\n')
 for i in range(len(lines)):
     if "<title>" in lines[i] and "The evolving velocity field" not in lines[i]:
-        title=(lines[i].split("<title>")[1].split("</title>")[0])[0:29].title()
+        title=(lines[i].split("<title>")[1].split("</title>")[0]).title()
         papers.append(aPaper("","",title,0,0,0,[],'blue'))
     if "<work-external-identifier-id>10" in lines[i]:
         papers[-1].doi=lines[i].split("<work-external-identifier-id>")[1].split\
@@ -107,7 +107,8 @@ npapers=len(papers)
 if update:
     times=[]
     for paper in papers:
-        print paper.doi
+        print paper.title
+        #url1='http://esoads.eso.org/cgi-bin/basic_connect?qsearch='
         url1='http://adswww.harvard.edu/cgi-bin/basic_connect?qsearch='
         url2='&version=1&data_type=BIBTEX'
         authors=[]
@@ -136,9 +137,10 @@ if update:
         except:
             print "Wrong DOI identifier"
 
+        #url1='http://esoads.eso.org/cgi-bin/basic_connect?qsearch='
         url1='http://adswww.harvard.edu/cgi-bin/nph-ref_query?bibcode='
         url2='&amp;refs=CITATIONS&amp;db_key=AST&data_type=BIBTEX'
-        try:
+        try:            
             webpage=urlopen(url1 + identifier.replace("&", "%26") + url2)
             content=webpage.read()
             webpage.close()
@@ -162,7 +164,7 @@ if update:
                            + _monthtoyear(month)
                     paper.citationsByMonth.append(time)
 
-            print "number of citation", paper.nCitations
+            print "number of citations: ", paper.nCitations
         except:
             print "No citations"
             paper.nCitations = 0
@@ -297,7 +299,7 @@ ax.set_ylabel('Citations')
 ax.minorticks_on()
 plt.xticks(np.arange(0, 2*npapers+2, 2.0)+0.5)
 ax.tick_params(axis='x', which='both',labelsize=8)
-ax.set_xticklabels([paper.title for paper in papersSorted],rotation=45, \
+ax.set_xticklabels([paper.title[0:20] for paper in papersSorted],rotation=45, \
                     rotation_mode="anchor", ha="right")
 cites = map(int,[paper.nCitations for paper in papersSorted])
 ax.bar(2*np.arange(npapers)+0.25, cites, color=[ i.pi for i in papersSorted ])
