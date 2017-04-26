@@ -318,7 +318,7 @@ fig_nr += 1
 fig=plt.figure(fig_nr)
 ax=fig.add_subplot(111)
 ax.xaxis.set_major_formatter(FormatStrFormatter('%d'))
-ax.set_xlim(-1,10)
+ax.set_xlim(-1,11)
 ax.set_xlabel('Years after publication')
 ax.set_ylabel('Citations')
 ax.minorticks_on()
