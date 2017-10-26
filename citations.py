@@ -211,26 +211,12 @@ ax.set_xlim(2006,now+2)
 ax.xaxis.set_major_formatter(FormatStrFormatter('%d'))
 #ax.set_ylim(0,total_citations+0.2*total_citations)
 ax.set_xlabel('Year')
-ax.set_ylabel('Citation speed per month')
+ax.set_ylabel('Citations per month')
 ax.minorticks_on()
 x=np.arange(2006,now+2./12,1./12)
 y=np.zeros(len(x))
 tmp=np.array(sorted(citetimes))
-j=0
-i=0
-while j<len(y)-1:
-    if tmp[i] <= x[j]:
-        y[j]+=1
-        i+=1
-    else:
-        j+=1
-        y[j]=y[j-1]
-
-dy = np.zeros(x.shape,np.float)
-dy[0:-1] = np.diff(y)/np.diff(x)
-dy[-1] = (y[-1] - y[-2])/(x[-1] - x[-2])
-ax.plot(x[1:-1],moving_average(dy/12.), color='blue', lw=1.5)
-
+plt.hist(tmp, len(x), facecolor='green')
 
 
 
@@ -246,7 +232,7 @@ ax.set_ylabel('h-index')
 ax.minorticks_on()
 
 
-nMonth = int((now-2007.0)*12)
+nMonth = int((now-2007.0)*12)+2
 hindex = []
 h5index = []
 for i in range(nMonth):
