@@ -145,29 +145,30 @@ if update:
             content=webpage.read()
             webpage.close()
             lines=content.split('\n')
-
-            for i in range(len(lines)):
-                if "Retrieved" in lines[i]:
-                    paper.nCitations = int(lines[i].split()[1])
-                if "author" in lines[i]:
-                    names = lines[i].lstrip("author = ").rstrip("}")[1:].split("and")
-                    names = [name.lstrip().rstrip() for name in names]
-                    if names[0] in authors:
-                        paper.nSelfCitations += 1
-                if "year" in lines[i]:
-                    if "month" in lines[i+1]:
-                        month = lines[i+1].split()[2].rstrip(',')
-                    else:
-                        month = "jan"
-
-                    time = int(lines[i].split()[2].rstrip(',')) \
-                           + _monthtoyear(month)
-                    paper.citationsByMonth.append(time)
-
-            print "number of citations: ", paper.nCitations
         except:
-            print "No citations"
             paper.nCitations = 0
+            lines = []
+
+
+        for i in range(len(lines)):
+            if "Retrieved" in lines[i]:
+                paper.nCitations = int(lines[i].split()[1])
+            if "author" in lines[i]:
+                names = lines[i].lstrip("author = ").rstrip("}")[1:].split("and")
+                names = [name.lstrip().rstrip() for name in names]
+                if names[0] in authors:
+                    paper.nSelfCitations += 1
+            if "year" in lines[i] and "title" not in lines[i]:
+                if "month" in lines[i+1]:
+                    month = lines[i+1].split()[2].rstrip(',')
+                else:
+                    month = "jan"
+
+                time = int(lines[i].split()[2].rstrip(',')) \
+                        + _monthtoyear(month)
+                paper.citationsByMonth.append(time)
+
+        print "number of citations: ", paper.nCitations
 
     pickle.dump(papers, open("datadump.p","wb") )
 
