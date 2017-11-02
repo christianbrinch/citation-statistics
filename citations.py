@@ -200,7 +200,7 @@ ax.minorticks_on()
 cite = np.arange(total_citations)
 citetimes = [time for paper in papers for time in paper.citationsByMonth]
 ax.plot(sorted(citetimes),cite, lw=1.5)
-
+ax.plot([0,now+2],[1000,1000], '--', color='black')
 
 
 # Citations per month
