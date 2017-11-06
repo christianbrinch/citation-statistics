@@ -263,6 +263,11 @@ x=np.arange(len(hindex))/12. + 2007
 ax.plot(x, x-2007, color='black', lw=1.5)
 ax.plot(x, 2*(x-2007), color='black', lw=1.5)
 ax.plot(2007+np.arange(len(h5index))/12., h5index, color='red', lw=1.5)
+ax.plot(x, (hindex[-1]/(now-2007))*(x-2007), '--',color='orange', lw=1.5)
+
+xp=np.array([now-3.,now])
+ax.plot(xp, (hindex[-1]-hindex[-36])/3.*(xp-(now-3.))+hindex[-36], '--',color='purple', lw=1.5)
+
 
 print "h-index:", hindex[-1]
 print "h-index slope:", hindex[-1]/(now-2007)
