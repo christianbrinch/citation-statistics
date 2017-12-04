@@ -26,6 +26,8 @@ __email__      = "brinch@nbi.ku.dk"
 import sys
 from urllib2 import *
 import re
+import matplotlib
+matplotlib.use('Qt4Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 import pickle
