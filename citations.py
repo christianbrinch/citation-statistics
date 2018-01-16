@@ -35,6 +35,8 @@ from datetime import date
 from scipy.optimize import curve_fit
 from scipy.misc import factorial
 from matplotlib.ticker import FormatStrFormatter
+from matplotlib.ticker import AutoMinorLocator
+
 reload(sys)
 sys.setdefaultencoding('utf8')
 
@@ -142,7 +144,7 @@ if update:
         #url1='http://esoads.eso.org/cgi-bin/basic_connect?qsearch='
         url1='http://adswww.harvard.edu/cgi-bin/nph-ref_query?bibcode='
         url2='&amp;refs=CITATIONS&amp;db_key=AST&data_type=BIBTEX'
-        try:            
+        try:
             webpage=urlopen(url1 + identifier.replace("&", "%26") + url2)
             content=webpage.read()
             webpage.close()
@@ -205,20 +207,24 @@ ax.plot(sorted(citetimes),cite, lw=1.5)
 ax.plot([0,now+2],[1000,1000], '--', color='black')
 
 
+
+
+
+
 # Citations per month
 fig_nr += 1
 fig = plt.figure(fig_nr)
 ax=fig.add_subplot(111)
-ax.set_xlim(2006,now+2)
-ax.xaxis.set_major_formatter(FormatStrFormatter('%d'))
-#ax.set_ylim(0,total_citations+0.2*total_citations)
+plt.xticks(np.arange(2006, int(now)+1, 1))
+ax.xaxis.set_minor_locator(AutoMinorLocator(12))
 ax.set_xlabel('Year')
 ax.set_ylabel('Citations per month')
-ax.minorticks_on()
-x=np.arange(2006,now+2./12,1./12)
-y=np.zeros(len(x))
 tmp=np.array(sorted(citetimes))
-plt.hist(tmp, len(x), facecolor='green')
+nmonths=(int(now)-2006+1)*12
+plt.hist(tmp, bins=nmonths, range=(2006,int(now)+1), facecolor='green')
+
+
+
 
 
 
