@@ -42,34 +42,6 @@ reload(sys)
 sys.setdefaultencoding('utf8')
 
 
-def _monthtoyear(month):
-    if ("jan" in month):
-        return 0./12.
-    if ("feb" in month):
-        return 1./12.
-    if ("mar" in month):
-        return 2./12.
-    if ("apr" in month):
-        return 3./12.
-    if ("may" in month):
-        return 4./12.
-    if ("jun" in month):
-        return 5./12.
-    if ("jul" in month):
-        return 6./12.
-    if ("aug" in month):
-        return 7./12.
-    if ("sep" in month):
-        return 8./12.
-    if ("oct" in month):
-        return 9./12.
-    if ("nov" in month):
-        return 10./12.
-    if ("dec" in month):
-        return 11./12.
-    return 0.
-
-
 def moving_average(a, n=3):
     ret = np.cumsum(a, dtype=float)
     ret[n:] = ret[n:] - ret[:-n]
@@ -116,79 +88,51 @@ for i in range(len(lines)):
 
 npapers = len(papers)
 
-
+# Scrape paper citation info from ADS
 if update:
-    times = []
-
+    queryURL = "https://api.adsabs.harvard.edu/v1/search/bigquery"
     headers = {
         'Authorization': 'Bearer:OnVZIdDD8oGy11bLaCnLZlBbbkNfKU1k0jd8FQ6L'}
 
     for paper in papers:
-        print paper.doi.replace(":", "/")
-        params = (
-            ('q', paper.doi.replace(":", "/")),
-            ('fl', 'pubdate, title, bibcode, first_author'),
-        )
+        params = {'q': paper.doi.replace(
+            ":", "/"), 'wt': 'json',
+            'fl': 'pubdate, title, bibcode, first_author, citation'}
+        response = requests.get(queryURL,
+                                headers=headers, params=params).json()
 
-        try:
-            response = requests.get(
-                'http://api.adsabs.harvard.edu/v1/search/query', headers=headers, params=params).json()
+        paper.title = response['response']['docs'][0]['title'][0]
 
-            print response['response']['docs'][0]['title'][0]
+        paper.identifier = response['response']['docs'][0]['bibcode']
+        pubdate = response['response']['docs'][0]['pubdate'].split("-")
+        paper.pubYear = float(pubdate[0])+(float(pubdate[1])-1.)/12.
+        firstAuthor = response['response']['docs'][0]['first_author']
+        if "Brinch" in firstAuthor:
+            paper.pi = 'red'
 
-            paper.identifier = response['response']['docs'][0]['bibcode']
-            pubdate = response['response']['docs'][0]['pubdate'].split("-")
-            paper.pubYear = float(pubdate[0])+(float(pubdate[1])-1.)/12.
-            if "Brinch" in response['response']['docs'][0]['first_author']:
-                paper.pi = 'red'
-        except:
-            print "Wrong DOI identifier"
+        if 'citation' in response['response']['docs'][0]:
+            paper.nCitations = len(
+                response['response']['docs'][0]['citation'])
 
+            bibcodes = "bibcode"
+            for citer in response['response']['docs'][0]['citation']:
+                bibcodes += "\n"+citer
 
-#        import json
-#        queryURL = "https://api.adsabs.harvard.edu/v1/metrics"
-#        payload = {'bibcodes': paper.identifier, 'types': 'citations'}
-#        token = 'OnVZIdDD8oGy11bLaCnLZlBbbkNfKU1k0jd8FQ6L'
-#        headers = {'Content-type': 'application/json',
-#                   'Accept': 'text/plain', 'Authorization': 'Bearer %s' % token}
-#        r = requests.post(queryURL, data=json.dumps(payload), headers=headers)
-#
-#        print r.json()
-#
-#        sys.exit(0)
+            params = {'q': '*:*', 'wt': 'json',
+                      'fl': 'pubdate, author', 'rows': '1000'}
+            response = requests.post(queryURL, data=bibcodes,
+                                     headers=headers, params=params).json()
 
-        # url1='http://esoads.eso.org/cgi-bin/basic_connect?qsearch='
-        url1 = 'http://adswww.harvard.edu/cgi-bin/nph-ref_query?bibcode='
-        url2 = '&amp;refs=CITATIONS&amp;db_key=AST&data_type=BIBTEX'
-        try:
-            webpage = urlopen(
-                url1 + paper.identifier.replace("&", "%26") + url2)
-            content = webpage.read()
-            webpage.close()
-            lines = content.split('\n')
-        except:
+            for entry in response['response']['docs']:
+                pubdate = entry['pubdate'].split("-")
+                paper.citationsByMonth.append(
+                    float(pubdate[0])+(float(pubdate[1])-1.)/12.)
+                if firstAuthor in entry['author']:
+                    paper.nSelfCitations += 1
+        else:
             paper.nCitations = 0
-            lines = []
 
-        for i in range(len(lines)):
-            if "Retrieved" in lines[i]:
-                paper.nCitations = int(lines[i].split()[1])
-#            if "author" in lines[i]:
-#                names = lines[i].lstrip("author = ").rstrip("}")[
-#                    1:].split("and")
-#                names = [name.lstrip().rstrip() for name in names]
-#                if names[0] in authors:
-#                    paper.nSelfCitations += 1
-            if "year" in lines[i] and "title" not in lines[i]:
-                if "month" in lines[i+1]:
-                    month = lines[i+1].split()[2].rstrip(',')
-                else:
-                    month = "jan"
-
-                time = int(lines[i].split()[2].rstrip(',')) \
-                    + _monthtoyear(month)
-                paper.citationsByMonth.append(time)
-
+        print paper.title
         print "Number of citations: ", paper.nCitations
 
     pickle.dump(papers, open("datadump.p", "wb"))
@@ -203,7 +147,7 @@ papersSorted = sorted(papers, key=lambda x: x.nCitations, reverse=True)
 total_citations = sum([paper.nCitations for paper in papers])
 total_selfcite = sum([paper.nSelfCitations for paper in papers])
 print "Total number of citations: ", total_citations
-print "Number of citations without self-citations", total_citations-total_selfcite
+print "Number of citations without self-citations", total_citations - total_selfcite
 
 
 fig_nr = 1
