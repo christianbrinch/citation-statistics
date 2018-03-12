@@ -136,10 +136,12 @@ if update:
         print "Number of citations: ", paper.nCitations
 
     pickle.dump(papers, open("datadump.p", "wb"))
-
 else:
     papers = pickle.load(open("datadump.p", "rb"))
 
+
+firstPub = min(papers, key=lambda x: x.pubYear).pubYear
+dt = now - firstPub
 
 papersSorted = sorted(papers, key=lambda x: x.pubYear, reverse=True)
 papersSorted = sorted(papers, key=lambda x: x.nCitations, reverse=True)
@@ -150,53 +152,54 @@ print "Total number of citations: ", total_citations
 print "Number of citations without self-citations", total_citations - total_selfcite
 
 
-fig_nr = 1
-
 # Citations in time
+fig_nr = 1
 fig = plt.figure(fig_nr)
 ax = fig.add_subplot(111)
-ax.set_xlim(2006, now+2)
+ax.set_xlim(firstPub-1., now+2.)
 ax.xaxis.set_major_formatter(FormatStrFormatter('%d'))
-ax.set_ylim(0, total_citations+0.2*total_citations)
+ax.set_ylim(0, 1.2*total_citations)
 ax.set_xlabel('Year')
 ax.set_ylabel('Number of citations')
 ax.minorticks_on()
+
 cite = np.arange(total_citations)
 citetimes = [time for paper in papers for time in paper.citationsByMonth]
 ax.plot(sorted(citetimes), cite, lw=1.5)
-ax.plot([0, now+2], [1000, 1000], '--', color='black')
+ax.plot([firstPub-1., now+2.], [1000, 1000], '--', color='black')
 
 
 # Citations per month
 fig_nr += 1
 fig = plt.figure(fig_nr)
 ax = fig.add_subplot(111)
-plt.xticks(np.arange(2006, int(now)+1, 1))
-ax.xaxis.set_minor_locator(AutoMinorLocator(12))
+plt.xticks(np.arange(firstPub-1, int(now)+1, 1))
 ax.set_xlabel('Year')
 ax.set_ylabel('Citations per month')
+ax.xaxis.set_minor_locator(AutoMinorLocator(12))
+
 tmp = np.array(sorted(citetimes))
-nmonths = (int(now)-2006+1)*12
-plt.hist(tmp, bins=nmonths, range=(2006, int(now)+1), facecolor='green')
+nmonths = int((now-firstPub)*12.)
+plt.hist(tmp, bins=nmonths, range=(
+    int(firstPub-1), int(now)+1), facecolor='green')
 
 
 # h-index in time
 fig_nr += 1
 fig = plt.figure(fig_nr)
 ax = fig.add_subplot(111)
-ax.set_xlim(2006, now+2)
+ax.set_xlim(firstPub-1, now+2)
 ax.xaxis.set_major_formatter(FormatStrFormatter('%d'))
 ax.set_ylim(0, 20)
 ax.set_xlabel('Year')
 ax.set_ylabel('h-index')
 ax.minorticks_on()
 
-
-nMonth = int((now-2007.0)*12)+2
+nMonth = int((now-firstPub)*12.)+2
 hindex = []
 h5index = []
 for i in range(nMonth):
-    year = 2007 + i % 12 + (i - (i % 12 * 12))/12.
+    year = firstPub + i % 12 + (i - (i % 12 * 12))/12.
     currentCitations = []
     currentShortCitations = []
     for paper in papers:
@@ -218,20 +221,20 @@ for i in range(nMonth):
         if (i+1) <= numberOfShortCitation[i]:
             h5index[-1] += 1
 
-ax.plot(2007+np.arange(len(hindex))/12., hindex, color='blue', lw=1.5)
-x = np.arange(len(hindex))/12. + 2007
-ax.plot(x, x-2007, color='black', lw=1.5)
-ax.plot(x, 2*(x-2007), color='black', lw=1.5)
-ax.plot(2007+np.arange(len(h5index))/12., h5index, color='red', lw=1.5)
-ax.plot(x, (hindex[-1]/(now-2007))*(x-2007), '--', color='orange', lw=1.5)
+ax.plot(firstPub+np.arange(len(hindex))/12., hindex, color='blue', lw=1.5)
+x = np.arange(len(hindex))/12. + firstPub
+ax.plot(x, x-firstPub, color='black', lw=1.5)
+ax.plot(x, 2*(x-firstPub), color='black', lw=1.5)
+ax.plot(firstPub+np.arange(len(h5index))/12., h5index, color='red', lw=1.5)
+ax.plot(x, (hindex[-1]/(now-firstPub)) *
+        (x-firstPub), '--', color='orange', lw=1.5)
 
 xp = np.array([now-3., now])
 ax.plot(xp, (hindex[-1]-hindex[-36])/3.*(xp-(now-3.)) +
         hindex[-36], '--', color='purple', lw=1.5)
 
-
 print "h-index:", hindex[-1]
-print "h-index slope:", hindex[-1]/(now-2007)
+print "h-index slope:", hindex[-1]/(now-firstPub)
 print "h5-index:", h5index[-1]
 
 
@@ -246,6 +249,7 @@ plt.xticks(np.arange(0, 2*npapers+2, 2.0)+0.5)
 ax.tick_params(axis='x', which='both', labelsize=8)
 ax.set_xticklabels([paper.title[0:20] for paper in papersSorted], rotation=45,
                    rotation_mode="anchor", ha="right")
+
 cites = map(int, [paper.nCitations for paper in papersSorted])
 ax.bar(2*np.arange(npapers)+0.25, cites, color=[i.pi for i in papersSorted])
 cites = map(
@@ -261,15 +265,11 @@ fig_nr += 1
 fig = plt.figure(fig_nr)
 ax = fig.add_subplot(111)
 ax.xaxis.set_major_formatter(FormatStrFormatter('%d'))
-ax.set_xlim(-1, 11)
+ax.set_xlim(-1, int(now)-firstPub)
 ax.set_xlabel('Years after publication')
 ax.set_ylabel('Citations')
 ax.minorticks_on()
 plt.tick_params(axis='both', which='both', width=0.4)
-
-peak = []
-age = []
-colors = []
 
 for paper in papers:
     cite = np.arange(paper.nCitations)
@@ -279,6 +279,9 @@ for paper in papers:
     if len(x) > 2:
         plt.plot(moving_average(x), cite[1:-1],
                  color=paper.pi, lw=1.5, alpha=0.8)
+
+x = np.arange(len(hindex))/12.
+plt.plot(x, 12.*x, '--', color='black')
 
 
 plt.show()
