@@ -8,9 +8,10 @@ ORCID ID and search for citations on ADS.
 Example:
     This script can be run from the command line or from within python.
 
-        $ ./citations.py update
+        $ ./citations.py update xxxx-xxxx-xxxx-xxxx
 
-    if the update flag is omitted, the citation database will not be updated.
+    where xxxx-xxxx-xxxx-xxxx is the ORCID ID.
+    If the update flag is omitted, the citation database will not be updated.
 
 
 """
@@ -39,6 +40,7 @@ class OnePaper(object):
     '''
 
     def __init__(self, attr):
+        self.caller = None
         self.author = []
         self.citations_by_month = []
         self.selfcitations = 0
@@ -49,7 +51,7 @@ class OnePaper(object):
     def first_author(self):
         ''' Determine the color based on first author
         '''
-        if "Brinch" in self.author[0]:
+        if self.caller in self.author[0]:
             paper_color = 'red'
         else:
             paper_color = 'blue'
@@ -124,12 +126,21 @@ def hindex_calc(papers):
 
 
 def query_orcid():
-    ''' Get dois from ORCID
+    ''' Get name and dois from ORCID
+        First entry of dois is the name of the ORCID ID owner
     '''
+    query_url = "https://pub.orcid.org/"+ORCID+"/person"
+    response = requests.get(query_url)
+    lines = response.text.split('\n')
+    for line in lines:
+        if "family-name" in line:
+            name = [line.split("<personal-details:family-name>")[
+                1].split("</personal-details:family-name>")[0]]
+
+    dois = []
     query_url = "https://pub.orcid.org/"+ORCID+"/works"
     response = requests.get(query_url)
     lines = response.text.split('\n')
-    dois = []
     for line in lines:
         if "<common:external-id-value>10" in line:
             dois.append(line.split("<common:external-id-value>")[
@@ -137,7 +148,8 @@ def query_orcid():
             dois[-1] = dois[-1].encode("utf-8").replace(":", "/")
 
     dois = list(set(dois))
-    return dois
+    
+    return dois, name
 
 
 def citations_in_time(papers, fig_nr):
@@ -175,9 +187,10 @@ def citations_per_month(papers, fig_nr):
 
     citetimes = [time for paper in papers for time in paper.citations_by_month]
     citetimes = np.array(sorted(citetimes))
-    total_months = int((NOW-START)*12.)
+    total_months = (int(NOW+1)-int(START-1))*12
     plt.hist(citetimes, bins=total_months, range=(
         int(START-1), int(NOW)+1), facecolor='green')
+    print total_months
 
 
 def hindex_in_time(papers, fig_nr):
@@ -215,7 +228,7 @@ def hindex_in_time(papers, fig_nr):
 def citations_per_paper(papers, fig_nr):
     ''' Plot citations per paper
     '''
-    hindex = hindex_calc(papers)
+    hindex, h5index = hindex_calc(papers)
     sorted_papers = sorted(papers, key=lambda x: x.pubdate, reverse=True)
     sorted_papers = sorted(papers, key=lambda x: x.citations, reverse=True)
     fig = plt.figure(fig_nr)
@@ -273,11 +286,12 @@ def get_papers():
     papers = []
     update = False
     if len(sys.argv) > 1:
-        if sys.argv[1] == 'update':
-            update = True
+        for argv in sys.argv:
+            if 'update' in argv:
+                update = True
 
     # Get paper list from ORCID
-    dois = query_orcid()
+    dois, name = query_orcid()
 
     # Scrape paper citation info from ADS
     if update:
@@ -295,25 +309,27 @@ def get_papers():
         temp_url = "https://api.adsabs.harvard.edu/v1/search/query"
         headers = {
             'Authorization': 'Bearer:OnVZIdDD8oGy11bLaCnLZlBbbkNfKU1k0jd8FQ6L'}
-        for doi in dois:
+        for doi in dois[1:]:
             params = {'q': doi,
                       'wt': 'json',
                       'fl': 'pubdate, title, bibcode, author, citation'}
             response = requests.get(
                 temp_url, headers=headers, params=params).json()
 
-            entry = response['response']['docs'][0]
-            tmpdate = entry['pubdate'].split("-")
-            entry['pubdate'] = float(tmpdate[0]) + (float(tmpdate[1]) - 1.)/12.
-            entry['doi'] = doi
+            if response['response']['docs']:
+                entry = response['response']['docs'][0]
+                tmpdate = entry['pubdate'].split("-")
+                entry['pubdate'] = float(tmpdate[0]) + (float(tmpdate[1]) - 1.)/12.
+                entry['doi'] = doi
+                entry['caller'] = name[0]
 
-            papers.append(OnePaper(entry))
+                papers.append(OnePaper(entry))
 
-            if 'citation' in entry:
-                papers[-1].get_citations(entry['citation'])
+                if 'citation' in entry:
+                    papers[-1].get_citations(entry['citation'])
 
-            print papers[-1].title[0].encode('utf-8')
-            print "Number of citations: ", papers[-1].citations
+                print papers[-1].title[0].encode('utf-8')
+                print "Number of citations: ", papers[-1].citations
 
         pickle.dump(papers, open("datadump.p", "wb"))
     else:
@@ -335,8 +351,12 @@ def main():
 
 reload(sys)
 sys.setdefaultencoding('utf8')
-
 ORCID = '0000-0002-5074-7183'
+if len(sys.argv) > 1:
+    for arg in sys.argv:
+        if '-' in arg:
+            ORCID = arg
+
 NOW = date.today().year+date.today().month/12.
 START = 2007.
 
