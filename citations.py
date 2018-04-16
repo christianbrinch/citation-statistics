@@ -145,7 +145,7 @@ def query_orcid():
         if "<common:external-id-value>10" in line:
             dois.append(line.split("<common:external-id-value>")[
                 1].split("</common:external-id-value>")[0])
-            dois[-1] = dois[-1].encode("utf-8").replace(":", "/")
+            dois[-1] = dois[-1].encode("utf-8")#.replace(":", "%3a")
 
     dois = list(set(dois))
     
@@ -292,7 +292,7 @@ def get_papers():
 
     # Get paper list from ORCID
     dois, name = query_orcid()
-
+    
     # Scrape paper citation info from ADS
     if update:
         #   This following block of code works, once the ADS API allows bigquery
@@ -310,12 +310,12 @@ def get_papers():
         headers = {
             'Authorization': 'Bearer:OnVZIdDD8oGy11bLaCnLZlBbbkNfKU1k0jd8FQ6L'}
         for doi in dois[1:]:
-            params = {'q': doi,
+            params = {'q': '\"'+doi+'\"',
                       'wt': 'json',
                       'fl': 'pubdate, title, bibcode, author, citation'}
             response = requests.get(
                 temp_url, headers=headers, params=params).json()
-
+            
             if response['response']['docs']:
                 entry = response['response']['docs'][0]
                 tmpdate = entry['pubdate'].split("-")
@@ -330,6 +330,9 @@ def get_papers():
 
                 print papers[-1].title[0].encode('utf-8')
                 print "Number of citations: ", papers[-1].citations
+            else:
+                print response
+                sys.exit()
 
         pickle.dump(papers, open("datadump.p", "wb"))
     else:
