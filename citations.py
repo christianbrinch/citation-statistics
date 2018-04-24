@@ -190,7 +190,6 @@ def citations_per_month(papers, fig_nr):
     total_months = (int(NOW+1)-int(START-1))*12
     plt.hist(citetimes, bins=total_months, range=(
         int(START-1), int(NOW)+1), facecolor='green')
-    print total_months
 
 
 def hindex_in_time(papers, fig_nr):
