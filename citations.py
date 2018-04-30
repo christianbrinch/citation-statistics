@@ -291,7 +291,7 @@ def get_papers():
 
     # Get paper list from ORCID
     dois, name = query_orcid()
-    
+
     # Scrape paper citation info from ADS
     if update:
         #   This following block of code works, once the ADS API allows bigquery
@@ -308,13 +308,14 @@ def get_papers():
         temp_url = "https://api.adsabs.harvard.edu/v1/search/query"
         headers = {
             'Authorization': 'Bearer:OnVZIdDD8oGy11bLaCnLZlBbbkNfKU1k0jd8FQ6L'}
-        for doi in dois[1:]:
+        for doi in dois:
             params = {'q': '\"'+doi+'\"',
                       'wt': 'json',
                       'fl': 'pubdate, title, bibcode, author, citation'}
             response = requests.get(
                 temp_url, headers=headers, params=params).json()
             
+
             if response['response']['docs']:
                 entry = response['response']['docs'][0]
                 tmpdate = entry['pubdate'].split("-")
@@ -331,7 +332,6 @@ def get_papers():
                 print "Number of citations: ", papers[-1].citations
             else:
                 print response
-                sys.exit()
 
         pickle.dump(papers, open("datadump.p", "wb"))
     else:
