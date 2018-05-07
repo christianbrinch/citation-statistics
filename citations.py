@@ -259,7 +259,7 @@ def citations_per_paper_in_time(papers, fig_nr):
     fig = plt.figure(fig_nr)
     ax1 = fig.add_subplot(111)
     ax1.xaxis.set_major_formatter(FormatStrFormatter('%d'))
-    ax1.set_xlim(-1, int(NOW)-START)
+    ax1.set_xlim(-1, int(NOW+1)-START)
     ax1.set_xlabel('Years after publication')
     ax1.set_ylabel('Citations')
     ax1.minorticks_on()
