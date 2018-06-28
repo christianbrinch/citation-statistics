@@ -17,7 +17,7 @@ Example:
 """
 
 __author__ = "Christian Brinch"
-__copyright__ = "Copyright 2012-2016"
+__copyright__ = "Copyright 2012-2018"
 __credits__ = ["Christian Brinch"]
 __license__ = "AFL 3.0"
 __version__ = "1.0"
@@ -33,6 +33,7 @@ import requests
 import matplotlib.pyplot as plt
 from matplotlib.ticker import FormatStrFormatter
 from matplotlib.ticker import AutoMinorLocator
+from matplotlib.ticker import MaxNLocator
 
 
 class OnePaper(object):
@@ -145,10 +146,10 @@ def query_orcid():
         if "<common:external-id-value>10" in line:
             dois.append(line.split("<common:external-id-value>")[
                 1].split("</common:external-id-value>")[0])
-            dois[-1] = dois[-1].encode("utf-8")#.replace(":", "%3a")
+            dois[-1] = dois[-1].encode("utf-8")  # .replace(":", "%3a")
 
     dois = list(set(dois))
-    
+
     return dois, name
 
 
@@ -171,8 +172,12 @@ def citations_in_time(papers, fig_nr):
 
     cite = np.arange(total_citations)
     citetimes = [time for paper in papers for time in paper.citations_by_month]
-    ax1.plot(sorted(citetimes), cite, lw=1.5)
-    ax1.plot([START-1., NOW+2.], [1000, 1000], '--', color='black')
+    if len(citetimes) == total_citations:
+        ax1.plot(sorted(citetimes), cite, lw=1.5)
+        ax1.plot([START-1., NOW+2.], [1000, 1000], '--', color='black')
+    else:
+        print "Total citations by month is not equal to total citations (", total_citations, ",", len(
+            citetimes), ")"
 
 
 def citations_per_month(papers, fig_nr):
@@ -203,6 +208,7 @@ def hindex_in_time(papers, fig_nr):
     ax1.set_ylim(0, 20)
     ax1.set_xlabel('Year')
     ax1.set_ylabel('h-index')
+    ax1.yaxis.set_major_locator(MaxNLocator(integer=True))
     ax1.minorticks_on()
 
     ax1.plot(START+np.arange(len(hindex)) /
@@ -269,10 +275,9 @@ def citations_per_paper_in_time(papers, fig_nr):
         cite = np.arange(paper.citations)
         citetimes = [time-paper.pubdate for time in paper.citations_by_month]
 
-        if len(citetimes) > 2:
+        if len(citetimes) > 2 and len(citetimes) == len(cite[1:-1]):
             plt.plot(moving_average(sorted(citetimes)), cite[1:-1],
                      color=paper.first_author(), lw=1.5, alpha=0.8)
-
 
     x_axis = np.arange(int((NOW-START)*12.))/12.
     plt.plot(x_axis, 12.*x_axis, '--', color='black')
@@ -314,7 +319,6 @@ def get_papers():
                       'fl': 'pubdate, title, bibcode, author, citation'}
             response = requests.get(
                 temp_url, headers=headers, params=params).json()
-            
 
             if response['response']['docs']:
                 entry = response['response']['docs'][0]
@@ -340,9 +344,17 @@ def get_papers():
     return papers
 
 
-def main():
-    ''' Main wrapper
-    '''
+if __name__ == '__main__':
+    reload(sys)
+    sys.setdefaultencoding('utf8')
+    ORCID = '0000-0002-5074-7183'
+    if len(sys.argv) > 1:
+        for arg in sys.argv:
+            if '-' in arg:
+                ORCID = arg
+
+    NOW = date.today().year+date.today().month/12.
+    START = 2007.
     papers = get_papers()
     citations_in_time(papers, 1)
     citations_per_month(papers, 2)
@@ -350,17 +362,4 @@ def main():
     citations_per_paper(papers, 4)
     citations_per_paper_in_time(papers, 5)
 
-
-reload(sys)
-sys.setdefaultencoding('utf8')
-ORCID = '0000-0002-5074-7183'
-if len(sys.argv) > 1:
-    for arg in sys.argv:
-        if '-' in arg:
-            ORCID = arg
-
-NOW = date.today().year+date.today().month/12.
-START = 2007.
-
-main()
-plt.show()
+    plt.show()
