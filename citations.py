@@ -165,6 +165,8 @@ def citations_in_time(papers, fig_nr):
     ''' Plot citations in time
     '''
     total_citations = sum([paper.citations for paper in papers])
+    # Temporary:
+    total_citations -= 1
     total_selfcite = sum([paper.selfcitations for paper in papers])
     print "Total number of citations: ", total_citations
     print "Number of citations without self-citations", total_citations - total_selfcite
@@ -188,7 +190,7 @@ def citations_per_month(papers, fig_nr):
     fig = plt.figure(fig_nr)
     axis_params = {'xlim': (START-1., NOW+2.),
                    'xlabel': 'Year',
-                   'xticks': np.arange(START-1, int(NOW)+1, 1),
+                   'xticks': np.arange(START-1, int(NOW)+2, 1),
                    'ylabel': 'Citations per month',
                    'minor_locator': 12}
     axe = setup_axis(fig, **axis_params)
@@ -235,13 +237,12 @@ def citations_per_paper(papers, fig_nr):
     '''
     fig = plt.figure(fig_nr)
     axis_params = {'xlim': (0, 2*len(papers)+2),
-                   'xlabel': 'Years after publication',
+                   'xlabel': '',
                    'xticks': np.arange(0, 2*len(papers)+2, 2.0)+0.5,
                    'ylabel': 'Citations'}
     axe = setup_axis(fig, **axis_params)
 
     hindex, h5index = hindex_calc(papers)
-    sorted_papers = sorted(papers, key=lambda x: x.pubdate, reverse=True)
     sorted_papers = sorted(papers, key=lambda x: x.citations, reverse=True)
 
     axe.minorticks_off()
@@ -260,6 +261,27 @@ def citations_per_paper(papers, fig_nr):
     axe.text(2*len(papers)-5, hindex[-1]+2, 'h-index')
 
 
+def normalized_citations_per_paper(papers, fig_nr):
+    ''' Plot citations per paper
+    '''
+    fig = plt.figure(fig_nr)
+    axis_params = {'xlim': (START-1., NOW+2.),
+                   'xlabel': 'Year',
+                   'xticks': np.arange(START-1, int(NOW)+2, 1),
+                   'ylabel': 'Citations per month',
+                   'minor_locator': 12}
+    axe = setup_axis(fig, **axis_params)
+
+    for paper in papers:
+        age = (NOW-paper.pubdate)*12.
+        offset = (2*np.random.rand()-1.)/6.
+        axe.bar([paper.pubdate+offset], [paper.citations/age], color=[paper.first_author()],
+                width=1/12.)
+        axe.text(paper.pubdate+offset, -0.05,
+                 paper.title[0][0:20], rotation=45, rotation_mode="anchor",
+                 ha="right", fontsize=6)
+
+
 def citations_per_paper_in_time(papers, fig_nr):
     ''' Plot citations per paper in time
     '''
@@ -273,9 +295,8 @@ def citations_per_paper_in_time(papers, fig_nr):
         cite = np.arange(paper.citations)
         citetimes = [time-paper.pubdate for time in paper.citations_by_month]
 
-        if len(citetimes) > 2 and len(citetimes) == len(cite[1:-1]):
-            axe.plot(moving_average(sorted(citetimes)), cite[1:-1],
-                     color=paper.first_author(), lw=1.5, alpha=0.8)
+        # axe.plot(moving_average(sorted(citetimes)), cite[1:-1],
+        #         color=paper.first_author(), lw=1.5, alpha=0.8)
 
     x_axis = np.arange(int((NOW-START)*12.))/12.
     axe.plot(x_axis, 12.*x_axis, '--', color='black')
@@ -395,6 +416,7 @@ if __name__ == '__main__':
     citations_per_month(PAPERS, 2)
     hindex_in_time(PAPERS, 3)
     citations_per_paper(PAPERS, 4)
-    citations_per_paper_in_time(PAPERS, 5)
+    normalized_citations_per_paper(PAPERS, 5)
+    citations_per_paper_in_time(PAPERS, 6)
 
     plt.show()
