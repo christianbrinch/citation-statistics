@@ -76,16 +76,16 @@ class OnePaper(object):
         response = requests.post(query_url, data=bibcodes,
                                  headers=headers, params=params).json()
 
-        for entry in response['response']['docs']:
-            pubdate = entry['pubdate'].split("-")
-            self.citations_by_month.append(
-                float(pubdate[0])+(float(pubdate[1])-1.)/12.)
-            if entry['first_author'] in self.author:
-                self.selfcitations += 1
-
-        if self.citations != len(self.citations_by_month):
-            print "WARING: Citation counts do not match!"
-            self.citations = len(self.citations_by_month)
+        try:
+            for entry in response['response']['docs']:
+                pubdate = entry['pubdate'].split("-")
+                self.citations_by_month.append(
+                    float(pubdate[0])+(float(pubdate[1])-1.)/12.)
+                if entry['first_author'] in self.author:
+                    self.selfcitations += 1
+        except AttributeError:
+            print "Key error"
+            print response
 
 ################################################################################
 #
@@ -165,8 +165,6 @@ def citations_in_time(papers, fig_nr):
     ''' Plot citations in time
     '''
     total_citations = sum([paper.citations for paper in papers])
-    # Temporary:
-    total_citations -= 1
     total_selfcite = sum([paper.selfcitations for paper in papers])
     print "Total number of citations: ", total_citations
     print "Number of citations without self-citations", total_citations - total_selfcite
@@ -242,7 +240,7 @@ def citations_per_paper(papers, fig_nr):
                    'ylabel': 'Citations'}
     axe = setup_axis(fig, **axis_params)
 
-    hindex, h5index = hindex_calc(papers)
+    hindex, _ = hindex_calc(papers)
     sorted_papers = sorted(papers, key=lambda x: x.citations, reverse=True)
 
     axe.minorticks_off()
@@ -294,9 +292,9 @@ def citations_per_paper_in_time(papers, fig_nr):
     for paper in papers:
         cite = np.arange(paper.citations)
         citetimes = [time-paper.pubdate for time in paper.citations_by_month]
-
-        # axe.plot(moving_average(sorted(citetimes)), cite[1:-1],
-        #         color=paper.first_author(), lw=1.5, alpha=0.8)
+        if len(cite) == len(citetimes):
+            axe.plot(moving_average(sorted(citetimes)), cite[1:-1],
+                     color=paper.first_author(), lw=1.5, alpha=0.8)
 
     x_axis = np.arange(int((NOW-START)*12.))/12.
     axe.plot(x_axis, 12.*x_axis, '--', color='black')
