@@ -22,13 +22,14 @@ __credits__ = ["Christian Brinch"]
 __license__ = "AFL 3.0"
 __version__ = "1.0"
 __maintainer__ = "Christian Brinch"
-__email__ = "brinch@nbi.ku.dk"
+__email__ = "cbri@dtu.dk"
 
 
 import sys
 import pickle
 from datetime import date
 import numpy as np
+import seaborn as sns
 import requests
 import matplotlib.pyplot as plt
 from matplotlib.ticker import FormatStrFormatter
@@ -53,9 +54,9 @@ class OnePaper(object):
         ''' Determine the color based on first author
         '''
         if self.caller in self.author[0]:
-            paper_color = 'red'
+            paper_color = sns.xkcd_rgb['pale red']
         else:
-            paper_color = 'blue'
+            paper_color = sns.xkcd_rgb['denim blue']
         return paper_color
 
     def get_citations(self, citation_list):
@@ -94,10 +95,11 @@ class OnePaper(object):
 ################################################################################
 
 
-def setup_axis(fig, **params):
+def setup_axis(fig_nr, **params):
     ''' Setup axis based on parameters sent from plot functions
     '''
-    axe = fig.add_subplot(111)
+    _ = plt.figure(fig_nr)
+    axe = plt.subplot(111)
     axe.set_xlim(params['xlim'][0], params['xlim'][1])
     axe.set_xlabel(params['xlabel'])
     if 'xticks' in params:
@@ -169,61 +171,59 @@ def citations_in_time(papers, fig_nr):
     print "Total number of citations: ", total_citations
     print "Number of citations without self-citations", total_citations - total_selfcite
 
-    fig = plt.figure(fig_nr)
     axis_params = {'xlim': (START-1., NOW+2.),
                    'xlabel': 'Year',
                    'ylim': (0, 1.2*total_citations),
                    'ylabel': 'Number of citations'}
-    axe = setup_axis(fig, **axis_params)
+    axe = setup_axis(fig_nr, **axis_params)
 
     cite = np.arange(total_citations)
     citetimes = [time for paper in papers for time in paper.citations_by_month]
-    axe.plot(sorted(citetimes), cite, lw=1.5)
-    axe.plot([START-1., NOW+2.], [1000, 1000], '--', color='black')
+    axe.plot(sorted(citetimes), cite, alpha=0.8, lw=1.8)
+    axe.plot([START-1., NOW+2.], [1000, 1000], '--', alpha=0.8, color='black')
 
 
 def citations_per_month(papers, fig_nr):
     ''' Plot citations per month
     '''
-    fig = plt.figure(fig_nr)
+
     axis_params = {'xlim': (START-1., NOW+2.),
                    'xlabel': 'Year',
                    'xticks': np.arange(START-1, int(NOW)+2, 1),
                    'ylabel': 'Citations per month',
                    'minor_locator': 12}
-    axe = setup_axis(fig, **axis_params)
+    axe = setup_axis(fig_nr, **axis_params)
 
     citetimes = [time for paper in papers for time in paper.citations_by_month]
     citetimes = np.array(sorted(citetimes))
     total_months = (int(NOW+1)-int(START-1))*12
 
     axe.hist(citetimes, bins=total_months, range=(
-        int(START-1), int(NOW)+1), facecolor='green')
+        int(START-1), int(NOW)+1), facecolor=sns.xkcd_rgb['faded green'])
 
 
 def hindex_in_time(papers, fig_nr):
     ''' Plot h-index in time
     '''
     hindex, h5index = hindex_calc(papers)
-    fig = plt.figure(fig_nr)
     axis_params = {'xlim': (START-1., NOW+2.),
                    'xlabel': 'Year',
                    'ylabel': 'h-index'}
-    axe = setup_axis(fig, **axis_params)
+    axe = setup_axis(fig_nr, **axis_params)
 
     axe.plot(START+np.arange(len(hindex)) /
-             12., hindex, color='blue', lw=1.5)
+             12., hindex, color=sns.xkcd_rgb['denim blue'], lw=1.8)
     x_axis = np.arange(len(hindex))/12. + START
-    axe.plot(x_axis, x_axis-START, color='black', lw=1.5)
-    axe.plot(x_axis, 2*(x_axis-START), color='black', lw=1.5)
+    axe.plot(x_axis, x_axis-START, color='black', lw=1.8, alpha=0.8)
+    axe.plot(x_axis, 2*(x_axis-START), color='black', lw=1.8, alpha=0.8)
     axe.plot(START+np.arange(len(h5index)) /
-             12., h5index, color='red', lw=1.5)
+             12., h5index, color=sns.xkcd_rgb['pale red'], lw=1.8)
     axe.plot(x_axis, (hindex[-1]/(NOW-START)) *
-             (x_axis-START), '--', color='orange', lw=1.5)
+             (x_axis-START), '--', color=sns.xkcd_rgb['amber'], lw=1.8)
 
     x_short = np.array([NOW-3., NOW])
     axe.plot(x_short, (hindex[-1]-hindex[-36])/3.*(x_short-(NOW-3.)) +
-             hindex[-36], '--', color='purple', lw=1.5)
+             hindex[-36], '--', color=sns.xkcd_rgb['faded green'], lw=1.8)
 
     print "h-index:", hindex[-1]
     print "h-index slope:", hindex[-1]/(NOW-START)
@@ -233,12 +233,11 @@ def hindex_in_time(papers, fig_nr):
 def citations_per_paper(papers, fig_nr):
     ''' Plot citations per paper
     '''
-    fig = plt.figure(fig_nr)
     axis_params = {'xlim': (0, 2*len(papers)+2),
                    'xlabel': '',
                    'xticks': np.arange(0, 2*len(papers)+2, 2.0)+0.5,
                    'ylabel': 'Citations'}
-    axe = setup_axis(fig, **axis_params)
+    axe = setup_axis(fig_nr, **axis_params)
 
     hindex, _ = hindex_calc(papers)
     sorted_papers = sorted(papers, key=lambda x: x.citations, reverse=True)
@@ -253,51 +252,51 @@ def citations_per_paper(papers, fig_nr):
     cites = map(
         int, [paper.citations-paper.selfcitations for paper in sorted_papers])
     axe.bar(2*np.arange(len(papers))+0.9, cites,
-            color=[i.first_author() for i in sorted_papers], alpha=0.5)
+            color=[i.first_author() for i in sorted_papers], alpha=0.8)
     axe.plot([0, 2*len(papers)+0.25],
-             [hindex[-1], hindex[-1]], '--', color='black')
+             [hindex[-1], hindex[-1]], '--', color='black', alpha=0.6)
     axe.text(2*len(papers)-5, hindex[-1]+2, 'h-index')
 
 
 def normalized_citations_per_paper(papers, fig_nr):
     ''' Plot citations per paper
     '''
-    fig = plt.figure(fig_nr)
     axis_params = {'xlim': (START-1., NOW+2.),
                    'xlabel': 'Year',
                    'xticks': np.arange(START-1, int(NOW)+2, 1),
                    'ylabel': 'Citations per month',
                    'minor_locator': 12}
-    axe = setup_axis(fig, **axis_params)
+    axe = setup_axis(fig_nr, **axis_params)
 
     for paper in papers:
         age = (NOW-paper.pubdate)*12.
-        offset = (2*np.random.rand()-1.)/6.
+        offset = 0.1
         axe.bar([paper.pubdate+offset], [paper.citations/age], color=[paper.first_author()],
                 width=1/12.)
-        axe.text(paper.pubdate+offset, -0.05,
-                 paper.title[0][0:20], rotation=45, rotation_mode="anchor",
-                 ha="right", fontsize=6)
+        # axe.text(paper.pubdate+offset, -0.05,
+        #         paper.title[0][0:20], rotation=45, rotation_mode="anchor",
+        #         ha="right", fontsize=6)
+        axe.annotate(paper.title[0][0:20], (paper.pubdate+offset, paper.citations/age+0.3),
+                     fontsize=7, rotation=90, alpha=0.8, ha='left', va='top')
 
 
 def citations_per_paper_in_time(papers, fig_nr):
     ''' Plot citations per paper in time
     '''
-    fig = plt.figure(fig_nr)
     axis_params = {'xlim': (-1, NOW+1-START),
                    'xlabel': 'Years after publication',
                    'ylabel': 'Citations'}
-    axe = setup_axis(fig, **axis_params)
+    axe = setup_axis(fig_nr, **axis_params)
 
     for paper in papers:
         cite = np.arange(paper.citations)
         citetimes = [time-paper.pubdate for time in paper.citations_by_month]
         if len(cite) == len(citetimes):
             axe.plot(moving_average(sorted(citetimes)), cite[1:-1],
-                     color=paper.first_author(), lw=1.5, alpha=0.8)
+                     color=paper.first_author(), lw=1.8, alpha=0.8)
 
     x_axis = np.arange(int((NOW-START)*12.))/12.
-    axe.plot(x_axis, 12.*x_axis, '--', color='black')
+    axe.plot(x_axis, 12.*x_axis, '--', color='black', alpha=0.8)
 
 
 ################################################################################
@@ -400,6 +399,7 @@ def get_papers():
 ################################################################################
 if __name__ == '__main__':
     reload(sys)
+    sns.set()
     sys.setdefaultencoding('utf8')
     ORCID = '0000-0002-5074-7183'
     if len(sys.argv) > 1:
