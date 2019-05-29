@@ -37,7 +37,7 @@ from matplotlib.ticker import AutoMinorLocator
 from matplotlib.ticker import MaxNLocator
 
 
-class OnePaper(object):
+class OnePaper():
     ''' A class that contains information about a single paper
     '''
 
@@ -85,8 +85,8 @@ class OnePaper(object):
                 if entry['first_author'] in self.author:
                     self.selfcitations += 1
         except AttributeError:
-            print "Key error"
-            print response
+            print("Key error")
+            print(response)
 
 ################################################################################
 #
@@ -141,7 +141,7 @@ def hindex_calc(papers):
             for citation in paper.citations_by_month:
                 if citation < year:
                     current_citations[-1] += 1
-                if citation < year and citation > (year-5):
+                if (year-5) < citation < year:
                     current_short_citations[-1] += 1
 
         number_of_citations = sorted(current_citations, reverse=True)
@@ -168,8 +168,8 @@ def citations_in_time(papers, fig_nr):
     '''
     total_citations = sum([paper.citations for paper in papers])
     total_selfcite = sum([paper.selfcitations for paper in papers])
-    print "Total number of citations: ", total_citations
-    print "Number of citations without self-citations", total_citations - total_selfcite
+    print("Total number of citations: ", total_citations)
+    print("Number of citations without self-citations", total_citations - total_selfcite)
 
     axis_params = {'xlim': (START-1., NOW+2.),
                    'xlabel': 'Year',
@@ -225,9 +225,9 @@ def hindex_in_time(papers, fig_nr):
     axe.plot(x_short, (hindex[-1]-hindex[-36])/3.*(x_short-(NOW-3.)) +
              hindex[-36], '--', color=sns.xkcd_rgb['faded green'], lw=1.8)
 
-    print "h-index:", hindex[-1]
-    print "h-index slope:", hindex[-1]/(NOW-START)
-    print "h5-index:", h5index[-1]
+    print("h-index:", hindex[-1])
+    print("h-index slope:", hindex[-1]/(NOW-START))
+    print("h5-index:", h5index[-1])
 
 
 def citations_per_paper(papers, fig_nr):
@@ -246,11 +246,12 @@ def citations_per_paper(papers, fig_nr):
     axe.set_xticklabels([paper.title[0][0:20] for paper in sorted_papers], rotation=45,
                         rotation_mode="anchor", ha="right", fontsize=6)
 
-    cites = map(int, [paper.citations for paper in sorted_papers])
+    cites = list(map(int, [paper.citations for paper in sorted_papers]))
+
     axe.bar(2*np.arange(len(papers))+0.25, cites,
             color=[i.first_author() for i in sorted_papers])
-    cites = map(
-        int, [paper.citations-paper.selfcitations for paper in sorted_papers])
+    cites = list(map(
+        int, [paper.citations-paper.selfcitations for paper in sorted_papers]))
     axe.bar(2*np.arange(len(papers))+0.9, cites,
             color=[i.first_author() for i in sorted_papers], alpha=0.8)
     axe.plot([0, 2*len(papers)+0.25],
@@ -362,9 +363,10 @@ def get_papers():
         headers = {
             'Authorization': 'Bearer:OnVZIdDD8oGy11bLaCnLZlBbbkNfKU1k0jd8FQ6L'}
         for doi in dois:
-            params = {'q': '\"'+doi+'\"',
+            params = {'q': '\"'+doi.decode('utf8')+'\"',
                       'wt': 'json',
                       'fl': 'pubdate, title, bibcode, author, citation'}
+
             response = requests.get(
                 temp_url, headers=headers, params=params).json()
 
@@ -380,10 +382,10 @@ def get_papers():
                 if 'citation' in entry:
                     papers[-1].get_citations(entry['citation'])
 
-                print papers[-1].title[0].encode('utf-8')
-                print "Number of citations: ", papers[-1].citations
+                print(papers[-1].title[0].encode('utf-8'))
+                print("Number of citations: ", papers[-1].citations)
             else:
-                print response
+                print(response)
 
         pickle.dump(papers, open("datadump.p", "wb"))
     else:
@@ -398,9 +400,7 @@ def get_papers():
 #
 ################################################################################
 if __name__ == '__main__':
-    reload(sys)
     sns.set()
-    sys.setdefaultencoding('utf8')
     ORCID = '0000-0002-5074-7183'
     if len(sys.argv) > 1:
         for arg in sys.argv:
