@@ -1,2 +1,5 @@
 datadump.p
 .DS_Store
+__pycache__
+publications.md
+publications.pdf

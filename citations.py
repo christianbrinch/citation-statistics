@@ -17,16 +17,17 @@ Example:
 """
 
 __author__ = "Christian Brinch"
-__copyright__ = "Copyright 2012-2018"
+__copyright__ = "Copyright 2012-2019"
 __credits__ = ["Christian Brinch"]
 __license__ = "AFL 3.0"
-__version__ = "1.0"
+__version__ = "1.1"
 __maintainer__ = "Christian Brinch"
 __email__ = "cbri@dtu.dk"
 
 
 import sys
 import pickle
+import math
 from datetime import date
 import numpy as np
 import seaborn as sns
@@ -35,6 +36,10 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import FormatStrFormatter
 from matplotlib.ticker import AutoMinorLocator
 from matplotlib.ticker import MaxNLocator
+
+
+MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September',
+          'October', 'November', 'December']
 
 
 class OnePaper():
@@ -74,6 +79,7 @@ class OnePaper():
         params = {'q': '*:*',
                   'wt': 'json',
                   'fl': 'pubdate, first_author', 'rows': '1000'}
+
         response = requests.post(query_url, data=bibcodes,
                                  headers=headers, params=params).json()
 
@@ -179,6 +185,8 @@ def citations_in_time(papers, fig_nr):
 
     cite = np.arange(total_citations)
     citetimes = [time for paper in papers for time in paper.citations_by_month]
+    if len(cite) > len(citetimes):  # sometimes ads has the wrong number of citations
+        cite = cite[:len(citetimes)]
     axe.plot(sorted(citetimes), cite, alpha=0.8, lw=1.8)
     axe.plot([START-1., NOW+2.], [1000, 1000], '--', alpha=0.8, color='black')
 
@@ -225,9 +233,9 @@ def hindex_in_time(papers, fig_nr):
     axe.plot(x_short, (hindex[-1]-hindex[-36])/3.*(x_short-(NOW-3.)) +
              hindex[-36], '--', color=sns.xkcd_rgb['faded green'], lw=1.8)
 
-    print("h-index:", hindex[-1])
-    print("h-index slope:", hindex[-1]/(NOW-START))
-    print("h5-index:", h5index[-1])
+    print("h-index: {0:d}".format(hindex[-1]))
+    print("h-index slope: {0:0.2f}".format(hindex[-1]/(NOW-START)))
+    print("h5-index: {0:d}".format(h5index[-1]))
 
 
 def citations_per_paper(papers, fig_nr):
@@ -259,28 +267,6 @@ def citations_per_paper(papers, fig_nr):
     axe.text(2*len(papers)-5, hindex[-1]+2, 'h-index')
 
 
-def normalized_citations_per_paper(papers, fig_nr):
-    ''' Plot citations per paper
-    '''
-    axis_params = {'xlim': (START-1., NOW+2.),
-                   'xlabel': 'Year',
-                   'xticks': np.arange(START-1, int(NOW)+2, 1),
-                   'ylabel': 'Citations per month',
-                   'minor_locator': 12}
-    axe = setup_axis(fig_nr, **axis_params)
-
-    for paper in papers:
-        age = (NOW-paper.pubdate)*12.
-        offset = 0.1
-        axe.bar([paper.pubdate+offset], [paper.citations/age], color=[paper.first_author()],
-                width=1/12.)
-        # axe.text(paper.pubdate+offset, -0.05,
-        #         paper.title[0][0:20], rotation=45, rotation_mode="anchor",
-        #         ha="right", fontsize=6)
-        axe.annotate(paper.title[0][0:20], (paper.pubdate+offset, paper.citations/age+0.3),
-                     fontsize=7, rotation=90, alpha=0.8, ha='left', va='top')
-
-
 def citations_per_paper_in_time(papers, fig_nr):
     ''' Plot citations per paper in time
     '''
@@ -300,16 +286,68 @@ def citations_per_paper_in_time(papers, fig_nr):
     axe.plot(x_axis, 12.*x_axis, '--', color='black', alpha=0.8)
 
 
+def publication_list(papers):
+    ''' Prepare mark down publication list to pdf
+    '''
+    with open("publications.md", 'w') as md_file:
+        md_file.write("## Publications\n\n")
+        md_file.write(str(len(papers))+" refereed papers (")
+        md_file.write(str(sum([1 for paper in papers if paper.first_author() ==
+                               sns.xkcd_rgb['pale red']]))+" as first author); more than ")
+        md_file.write(
+            str(math.floor(sum([paper.citations for paper in papers])/100)*100)+" citations (")
+        md_file.write("h-index of "+str(hindex_calc(papers)[0][-1])+")\n\n")
+
+        for idx, paper in enumerate(papers):
+            md_file.write("("+str(idx+1)+") ")
+            flag = 0
+            for pos, fullname in enumerate(paper.author):
+                surname = fullname.split(', ')[0]
+                nameparts = fullname.split(', ')[1:][0].split(' ')
+                for entry, part in enumerate(nameparts):
+                    nameparts[entry] = part[0]+'.'
+
+                name = (' ').join([surname]+nameparts)
+
+                if pos == len(paper.author)-1:
+                    md_file.write(" and ")
+                if "Brinch" in name:
+                    md_file.write("__"+name+"__")
+                    flag = 1
+                elif pos > 10:
+                    if flag == 0:
+                        md_file.write("**et al.**")
+                    else:
+                        md_file.write("et al.")
+                    break
+                else:
+                    md_file.write(name)
+                if pos != len(paper.author)-1 and len(paper.author) > 2:
+                    md_file.write(", ")
+
+            md_file.write("<BR>")
+            md_file.write(paper.title[0]+"<BR>")
+            md_file.write(paper.pub + ", "+str(paper.volume) +
+                          ", "+str(paper.page[0])+", ")
+            month = int(np.round((paper.pubdate-math.floor(paper.pubdate))*12.))
+            md_file.write(MONTHS[month]+" "+str(int(paper.pubdate)))
+            if paper.citations > 0:
+                md_file.write(" ("+str(paper.citations)+" citations)")
+            md_file.write("<BR>")
+            md_file.write("\n\n")
+
 ################################################################################
 #
 # PROCESS PAPERS FROM ORCID AND ADS
 #
 ################################################################################
-def query_orcid():
+
+
+def query_orcid(orcid):
     ''' Get name and dois from ORCID
         First entry of dois is the name of the ORCID ID owner
     '''
-    query_url = "https://pub.orcid.org/"+ORCID+"/person"
+    query_url = "https://pub.orcid.org/"+orcid+"/person"
     response = requests.get(query_url)
     lines = response.text.split('\n')
     for line in lines:
@@ -318,7 +356,7 @@ def query_orcid():
                 1].split("</personal-details:family-name>")[0]]
 
     dois = []
-    query_url = "https://pub.orcid.org/"+ORCID+"/works"
+    query_url = "https://pub.orcid.org/"+orcid+"/works"
     response = requests.get(query_url)
     lines = response.text.split('\n')
     for line in lines:
@@ -332,40 +370,36 @@ def query_orcid():
     return dois, name
 
 
-def get_papers():
+def get_papers(orcid, update=False):
     ''' First get list of papers from ORCID.
         Then scrape citation information from ADS.
     '''
     papers = []
-    update = False
-    if len(sys.argv) > 1:
-        for argv in sys.argv:
-            if 'update' in argv:
-                update = True
 
     # Get paper list from ORCID
-    dois, name = query_orcid()
+    dois, name = query_orcid(orcid)
 
     # Scrape paper citation info from ADS
     if update:
-        #   This following block of code works, once the ADS API allows bigquery
-        #   using dois instead of bibcodes
-        #
-        #    params = {'q': '*:*',
-        #              'wt': 'json',
-        #              'rows': '1000',
-        #              'fl': 'pubdate, title, bibcode, first_author, citation'}
-        #    data = "doi"
-        #    for doi in dois:
-        #        data += "\n"+doi
-        #    response = requests.get(query_URL, headers=headers, data=data, params=params).json()
         temp_url = "https://api.adsabs.harvard.edu/v1/search/query"
         headers = {
             'Authorization': 'Bearer:OnVZIdDD8oGy11bLaCnLZlBbbkNfKU1k0jd8FQ6L'}
+
+        #   This following block of code works, once the ADS API allows bigquery
+        #   using dois instead of bibcodes
+        #
+        # params = {'q': '*:*',
+        #          'wt': 'json',
+        #          'rows': '1000',
+        #          'fl': 'pubdate, title, bibcode, first_author, citation'}
+        #data = "doi"
+        # for doi in dois:
+        #    data += "\n"+str(doi, 'utf-8')
+        #response = requests.get(query_URL, headers=headers, data=data, params=params).json()
         for doi in dois:
             params = {'q': '\"'+doi.decode('utf8')+'\"',
                       'wt': 'json',
-                      'fl': 'pubdate, title, bibcode, author, citation'}
+                      'fl': 'pubdate, title, bibcode, author, citation, pub, issue, volume, page'}
 
             response = requests.get(
                 temp_url, headers=headers, params=params).json()
@@ -387,6 +421,7 @@ def get_papers():
             else:
                 print(response)
 
+        papers.sort(key=lambda x: x.pubdate, reverse=True)
         pickle.dump(papers, open("datadump.p", "wb"))
     else:
         papers = pickle.load(open("datadump.p", "rb"))
@@ -399,22 +434,27 @@ def get_papers():
 # MAIN PART OF PROGRAM
 #
 ################################################################################
+
 if __name__ == '__main__':
     sns.set()
     ORCID = '0000-0002-5074-7183'
+    UPDATE = False
     if len(sys.argv) > 1:
         for arg in sys.argv:
             if '-' in arg:
                 ORCID = arg
+            if 'update' in arg:
+                UPDATE = True
 
     NOW = date.today().year+date.today().month/12.
-    START = 2007.
-    PAPERS = get_papers()
+    PAPERS = get_papers(ORCID, UPDATE)
+    START = np.min([paper.pubdate for paper in PAPERS])
     citations_in_time(PAPERS, 1)
     citations_per_month(PAPERS, 2)
     hindex_in_time(PAPERS, 3)
     citations_per_paper(PAPERS, 4)
-    normalized_citations_per_paper(PAPERS, 5)
-    citations_per_paper_in_time(PAPERS, 6)
+    citations_per_paper_in_time(PAPERS, 5)
+
+    publication_list(PAPERS)
 
     plt.show()
