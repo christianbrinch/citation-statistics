@@ -17,7 +17,7 @@ Example:
 """
 
 __author__ = "Christian Brinch"
-__copyright__ = "Copyright 2012-2019"
+__copyright__ = "Copyright 2012-2020"
 __credits__ = ["Christian Brinch"]
 __license__ = "AFL 3.0"
 __version__ = "1.1"
@@ -420,6 +420,7 @@ def get_papers(orcid, update=False):
                 print("Number of citations: ", papers[-1].citations)
             else:
                 print(response)
+
 
         papers.sort(key=lambda x: x.pubdate, reverse=True)
         pickle.dump(papers, open("datadump.p", "wb"))
