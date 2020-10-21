@@ -3,3 +3,4 @@ datadump.p
 __pycache__
 publications.md
 publications.pdf
+geckodriver.log
