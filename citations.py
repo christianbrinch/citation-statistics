@@ -243,7 +243,7 @@ def citations_per_paper(papers, fig_nr):
     '''
     axis_params = {'xlim': (0, 2*len(papers)+2),
                    'xlabel': '',
-                   'xticks': np.arange(0, 2*len(papers)+2, 2.0)+0.5,
+                   'xticks': np.arange(0, 2*len(papers)+0, 2.0)+0.5,
                    'ylabel': 'Citations'}
     axe = setup_axis(fig_nr, **axis_params)
 
