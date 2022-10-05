@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """ Citation statistics code
 
@@ -36,6 +36,7 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import FormatStrFormatter
 from matplotlib.ticker import AutoMinorLocator
 from matplotlib.ticker import MaxNLocator
+import pubmed
 
 
 MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September',
@@ -286,6 +287,23 @@ def citations_per_paper_in_time(papers, fig_nr):
     axe.plot(x_axis, 12.*x_axis, '--', color='black', alpha=0.8)
 
 
+def publications_in_time(papers, fig_nr):
+    ''' Plot publication history per year
+    '''
+    axis_params = {'xlim': (START-1., NOW+2.),
+                   'xlabel': 'Year',
+                   'xticks': np.arange(START-1, int(NOW)+2, 1),
+                   'ylabel': 'Publications per year'}
+    axe = setup_axis(fig_nr, **axis_params)
+    publications = [int(paper.pubdate) for paper in papers]
+    total_years = (int(NOW+2)-int(START-1))
+
+    axe.hist(publications, bins=total_years, range=(
+        int(START-1), int(NOW)+2), facecolor=sns.xkcd_rgb['faded green'])
+
+
+
+
 def publication_list(papers):
     ''' Prepare mark down publication list to pdf
     '''
@@ -385,21 +403,12 @@ def get_papers(orcid, update=False):
         headers = {
             'Authorization': 'Bearer:OnVZIdDD8oGy11bLaCnLZlBbbkNfKU1k0jd8FQ6L'}
 
-        #   This following block of code works, once the ADS API allows bigquery
-        #   using dois instead of bibcodes
-        #
-        # params = {'q': '*:*',
-        #          'wt': 'json',
-        #          'rows': '1000',
-        #          'fl': 'pubdate, title, bibcode, first_author, citation'}
-        #data = "doi"
-        # for doi in dois:
-        #    data += "\n"+str(doi, 'utf-8')
-        #response = requests.get(query_URL, headers=headers, data=data, params=params).json()
         for doi in dois:
             params = {'q': '\"'+doi.decode('utf8')+'\"',
                       'wt': 'json',
                       'fl': 'pubdate, title, bibcode, author, citation, pub, issue, volume, page'}
+
+
 
             response = requests.get(
                 temp_url, headers=headers, params=params).json()
@@ -414,14 +423,18 @@ def get_papers(orcid, update=False):
                 papers.append(OnePaper(entry))
 
                 if 'citation' in entry:
-                    papers[-1].get_citations(entry['citation'])
+                    #entry['citation'] = [i for i in entry['citation'] if ('arXiv' not in i) if ('book' not in i) if ('conf' not in i)]
+                    #print(entry['citation'])
+                    if len(entry['citation'])>0:
+                        papers[-1].get_citations(entry['citation'])
 
-                print(papers[-1].title[0].encode('utf-8'))
-                print("Number of citations: ", papers[-1].citations)
             else:
-                print(response)
+                papers.append(OnePaper(pubmed.data[doi]))
 
+            print(papers[-1].title[0].encode('utf-8'))
+            print("Number of citations: ", papers[-1].citations)
 
+        print('Total number of papers: ', len(dois))
         papers.sort(key=lambda x: x.pubdate, reverse=True)
         pickle.dump(papers, open("datadump.p", "wb"))
     else:
@@ -455,6 +468,7 @@ if __name__ == '__main__':
     hindex_in_time(PAPERS, 3)
     citations_per_paper(PAPERS, 4)
     citations_per_paper_in_time(PAPERS, 5)
+    publications_in_time(PAPERS, 6)
 
     publication_list(PAPERS)
 
