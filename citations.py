@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/opt/homebrew/bin/python3.10
 # -*- coding: utf-8 -*-
 """ Citation statistics code
 
@@ -176,7 +176,8 @@ def citations_in_time(papers, fig_nr):
     total_citations = sum([paper.citations for paper in papers])
     total_selfcite = sum([paper.selfcitations for paper in papers])
     print("Total number of citations: ", total_citations)
-    print("Number of citations without self-citations", total_citations - total_selfcite)
+    print("Number of citations without self-citations",
+          total_citations - total_selfcite)
 
     axis_params = {'xlim': (START-1., NOW+2.),
                    'xlabel': 'Year',
@@ -277,10 +278,16 @@ def citations_per_paper_in_time(papers, fig_nr):
     axe = setup_axis(fig_nr, **axis_params)
 
     for paper in papers:
-        cite = np.arange(paper.citations)
-        citetimes = [time-paper.pubdate for time in paper.citations_by_month]
+        cite = (np.append(np.arange(paper.citations), paper.citations-1))+1
+        citetimes = [
+            time-paper.pubdate for time in paper.citations_by_month]+[NOW-paper.pubdate]
         if len(cite) == len(citetimes):
-            axe.plot(moving_average(sorted(citetimes)), cite[1:-1],
+            axe.plot(sorted(citetimes), cite,
+                     color=paper.first_author(), lw=1.8, alpha=0.8)
+            # axe.plot(moving_average(sorted(citetimes)), cite[1:-1],
+            #         color=paper.first_author(), lw=1.8, alpha=0.8)
+        else:
+            axe.plot(sorted(citetimes), cite[:-1],
                      color=paper.first_author(), lw=1.8, alpha=0.8)
 
     x_axis = np.arange(int((NOW-START)*12.))/12.
@@ -302,8 +309,6 @@ def publications_in_time(papers, fig_nr):
         int(START-1), int(NOW)+2), facecolor=sns.xkcd_rgb['faded green'])
 
 
-
-
 def publication_list(papers):
     ''' Prepare mark down publication list to pdf
     '''
@@ -321,7 +326,11 @@ def publication_list(papers):
             flag = 0
             for pos, fullname in enumerate(paper.author):
                 surname = fullname.split(', ')[0]
-                nameparts = fullname.split(', ')[1:][0].split(' ')
+                try:
+                    nameparts = fullname.split(', ')[1:][0].split(' ')
+                except:
+                    print(fullname)
+                    pass
                 for entry, part in enumerate(nameparts):
                     nameparts[entry] = part[0]+'.'
 
@@ -345,9 +354,14 @@ def publication_list(papers):
 
             md_file.write("<BR>")
             md_file.write(paper.title[0]+"<BR>")
-            md_file.write(paper.pub + ", "+str(paper.volume) +
-                          ", "+str(paper.page[0])+", ")
-            month = int(np.round((paper.pubdate-math.floor(paper.pubdate))*12.))
+            try:
+                md_file.write(paper.pub + ", "+str(paper.volume) +
+                              ", "+str(paper.page[0])+", ")
+            except:
+                print(paper.pub)
+                pass
+            month = int(
+                np.round((paper.pubdate-math.floor(paper.pubdate))*12.))
             md_file.write(MONTHS[month]+" "+str(int(paper.pubdate)))
             if paper.citations > 0:
                 md_file.write(" ("+str(paper.citations)+" citations)")
@@ -408,28 +422,30 @@ def get_papers(orcid, update=False):
                       'wt': 'json',
                       'fl': 'pubdate, title, bibcode, author, citation, pub, issue, volume, page'}
 
-
-
             response = requests.get(
                 temp_url, headers=headers, params=params).json()
 
             if response['response']['docs']:
                 entry = response['response']['docs'][0]
                 tmpdate = entry['pubdate'].split("-")
-                entry['pubdate'] = float(tmpdate[0]) + (float(tmpdate[1]) - 1.)/12.
+                entry['pubdate'] = float(
+                    tmpdate[0]) + (float(tmpdate[1]) - 1.)/12.
                 entry['doi'] = doi
                 entry['caller'] = name[0]
 
                 papers.append(OnePaper(entry))
 
                 if 'citation' in entry:
-                    #entry['citation'] = [i for i in entry['citation'] if ('arXiv' not in i) if ('book' not in i) if ('conf' not in i)]
-                    #print(entry['citation'])
-                    if len(entry['citation'])>0:
+                    # entry['citation'] = [i for i in entry['citation'] if ('arXiv' not in i) if ('book' not in i) if ('conf' not in i)]
+                    # print(entry['citation'])
+                    if len(entry['citation']) > 0:
                         papers[-1].get_citations(entry['citation'])
 
             else:
-                papers.append(OnePaper(pubmed.data[doi]))
+                try:
+                    papers.append(OnePaper(pubmed.data[doi]))
+                except:
+                    pass
 
             print(papers[-1].title[0].encode('utf-8'))
             print("Number of citations: ", papers[-1].citations)
@@ -439,6 +455,7 @@ def get_papers(orcid, update=False):
         pickle.dump(papers, open("datadump.p", "wb"))
     else:
         papers = pickle.load(open("datadump.p", "rb"))
+        print('Total number of papers: ', len(dois))
 
     return papers
 
